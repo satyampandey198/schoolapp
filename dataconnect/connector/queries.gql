@@ -1,0 +1,40 @@
+# ----------- AUTH ------------
+query GetUserByUsername($username: String!) @auth(level: PUBLIC) {
+  users(where: { username: { eq: $username } }) {
+    id
+    username
+    passwordHash
+    role
+    firstName
+    lastName
+    email
+  }
+}
+
+# ----------- CLASSES ---------
+query GetUserById($id: UUID!) @auth(level: PUBLIC) {
+  user(id: $id) {
+    id
+    username
+    role
+    firstName
+    lastName
+    email
+  }
+}
+
+query ListAllClasses @auth(level: PUBLIC) {
+  classes {
+    id
+    academicYear
+    semester
+    course {
+      name
+      courseCode
+    }
+    teacher {
+      firstName
+      lastName
+    }
+  }
+}

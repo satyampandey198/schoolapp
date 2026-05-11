@@ -1,0 +1,45 @@
+query ListAllCourses @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public as it only lists general course information.") {
+  courses {
+    id
+    name
+    courseCode
+    description
+    credits
+  }
+}
+
+mutation CreateNewStudent($firstName: String!, $lastName: String!, $dateOfBirth: Date!, $email: String) @auth(level: USER, insecureReason: "This operation is safe to expose to all logged in users for creating new student records.") {
+  student_insert(data: {
+    firstName: $firstName,
+    lastName: $lastName,
+    dateOfBirth: $dateOfBirth,
+    email: $email
+  }) {
+    id
+  }
+}
+
+query GetMyEnrollments @auth(level: USER) {
+  enrollments(where: {student: {id_expr: "auth.uid"}}) {
+    enrollmentDate
+    gradeAchieved
+    class {
+      course {
+        name
+        courseCode
+      }
+      teacher {
+        firstName
+        lastName
+      }
+      academicYear
+      semester
+    }
+  }
+}
+
+mutation UpdateTeacherDepartment($teacherId: UUID!, $department: String!) @auth(expr: "auth.token.admin == true") {
+  teacher_update(key: {id: $teacherId}, data: {department: $department}) {
+    id
+  }
+}

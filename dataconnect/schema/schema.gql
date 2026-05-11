@@ -1,0 +1,56 @@
+type User @table {
+  id: UUID! @default(expr: "uuidV4()")
+  username: String!
+  passwordHash: String!
+  role: String!
+  firstName: String
+  lastName: String
+  email: String
+}
+
+type Teacher @table {
+  id: UUID! @default(expr: "uuidV4()")
+  user: User!
+  firstName: String!
+  lastName: String!
+  teacherId: String
+  email: String
+  department: String
+}
+
+type Student @table {
+  id: UUID! @default(expr: "uuidV4()")
+  firstName: String!
+  lastName: String!
+  dateOfBirth: Date!
+  studentId: String
+  grade: Int
+  email: String
+  address: String
+}
+
+type Course @table {
+  id: UUID! @default(expr: "uuidV4()")
+  name: String!
+  courseCode: String!
+  description: String
+  credits: Int
+}
+
+type Class @table {
+  id: UUID! @default(expr: "uuidV4()")
+  course: Course!
+  teacher: Teacher!
+  academicYear: String!
+  semester: String!
+  classTime: String
+  roomNumber: String
+  maxCapacity: Int
+}
+
+type Enrollment @table {
+  student: Student!
+  class: Class!
+  enrollmentDate: Timestamp! @default(expr: "request.time")
+  gradeAchieved: String
+}

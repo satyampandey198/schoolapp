@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "530748718250",
+    "project_id": "schooladminproject-66cb7",
+    "storage_bucket": "schooladminproject-66cb7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:530748718250:android:d55ec709901f370f3424d3",
+        "android_client_info": {
+          "package_name": "com.cleverstudio.schoolapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA6tVkUr72On5msiPcJYSn6HEjqpR-T3Q0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:530748718250:android:509b265762112ff13424d3",
+        "android_client_info": {
+          "package_name": "com.schooladmin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA6tVkUr72On5msiPcJYSn6HEjqpR-T3Q0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

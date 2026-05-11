@@ -1,0 +1,90 @@
+mutation SeedData @auth(level: USER, insecureReason: "This operation is for seeding data and should only be run by authenticated users.") @transaction {
+  user_insertMany(data: [
+    {
+      id: "b21e8d99-5f21-4f11-9a70-4a8d4a9f9d2d",
+      username: "adminuser",
+      passwordHash: "hashedpassword1",
+      role: "admin",
+      firstName: "Admin",
+      lastName: "User",
+      email: "admin@example.com"
+    },
+    {
+      id: "a31f2b11-c678-4e00-8c22-9f1e8a2d3c4e",
+      username: "teacheruser",
+      passwordHash: "hashedpassword2",
+      role: "teacher",
+      firstName: "Teacher",
+      lastName: "One",
+      email: "teacher@example.com"
+    },
+    {
+      id: "c45d3e22-a1b2-4d33-9e44-5f6g7h8i9j0k",
+      username: "studentuser",
+      passwordHash: "hashedpassword3",
+      role: "student",
+      firstName: "Student",
+      lastName: "Alpha",
+      email: "student@example.com"
+    }
+  ])
+  teacher_insertMany(data: [
+    {
+      id: "f8e7d6c5-b4a3-210f-edcb-a98765432101",
+      userId: "a31f2b11-c678-4e00-8c22-9f1e8a2d3c4e",
+      firstName: "Teacher",
+      lastName: "One",
+      teacherId: "T001",
+      email: "teacher@example.com",
+      department: "Mathematics"
+    }
+  ])
+  student_insertMany(data: [
+    {
+      id: "d1c2b3a4-e5f6-7890-1234-567890abcdef",
+      firstName: "Student",
+      lastName: "Alpha",
+      dateOfBirth: "2005-09-15",
+      studentId: "S001",
+      grade: 10,
+      email: "student@example.com",
+      address: "123 Main St"
+    }
+  ])
+  course_insertMany(data: [
+    {
+      id: "e6f7d8c9-a0b1-2c3d-4e5f-67890abcdeff",
+      name: "Algebra I",
+      courseCode: "MATH101",
+      description: "Introductory Algebra course.",
+      credits: 3
+    },
+    {
+      id: "a1b2c3d4-e5f6-7890-1234-567890fedcba",
+      name: "History of the World",
+      courseCode: "HIST201",
+      description: "A comprehensive history course.",
+      credits: 3
+    }
+  ])
+  class_insertMany(data: [
+    {
+      id: "1a2b3c4d-5e6f-7890-1234-567890fedcba",
+      courseId: "e6f7d8c9-a0b1-2c3d-4e5f-67890abcdeff",
+      teacherId: "f8e7d6c5-b4a3-210f-edcb-a98765432101",
+      academicYear: "2023-2024",
+      semester: "Fall",
+      classTime: "MWF 10:00-11:00",
+      roomNumber: "A101",
+      maxCapacity: 30
+    }
+  ])
+  enrollment_insertMany(data: [
+    {
+      studentId: "d1c2b3a4-e5f6-7890-1234-567890abcdef",
+      classId: "1a2b3c4d-5e6f-7890-1234-567890fedcba",
+      enrollmentDate: "2023-08-28T09:00:00Z",
+      gradeAchieved: null
+    }
+  ])
+}
