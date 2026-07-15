@@ -141,6 +141,8 @@ class _TeacherCard extends StatelessWidget {
                     ],
                   ),
                 );
+              } else if (v == 'edit') {
+                _showEditTeacherDialog(context, teacher);
               } else if (v == 'credentials') {
                 _showCredentialsDialog(context, teacher);
               } else if (v == 'reset_pass') {
@@ -205,6 +207,61 @@ class _TeacherCard extends StatelessWidget {
               }
             },
             child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditTeacherDialog(BuildContext context, TeacherModel teacher) {
+    final nameCtrl = TextEditingController(text: teacher.name);
+    final subjCtrl = TextEditingController(text: teacher.subject);
+    final expCtrl = TextEditingController(text: teacher.experience);
+    final emailCtrl = TextEditingController(text: teacher.email);
+    final phoneCtrl = TextEditingController(text: teacher.phone);
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Edit Teacher'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
+              const SizedBox(height: 12),
+              TextField(controller: subjCtrl, decoration: const InputDecoration(labelText: 'Subject')),
+              const SizedBox(height: 12),
+              TextField(controller: expCtrl, decoration: const InputDecoration(labelText: 'Experience')),
+              const SizedBox(height: 12),
+              TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: 'Email')),
+              const SizedBox(height: 12),
+              TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'Phone')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final updated = TeacherModel(
+                id: teacher.id,
+                name: nameCtrl.text.trim(),
+                subject: subjCtrl.text.trim(),
+                assignedClass: teacher.assignedClass,
+                experience: expCtrl.text.trim(),
+                email: emailCtrl.text.trim(),
+                phone: phoneCtrl.text.trim(),
+                qualification: teacher.qualification,
+                isActive: teacher.isActive,
+                loginUsername: teacher.loginUsername,
+                loginPassword: teacher.loginPassword,
+              );
+              context.read<AdminViewModel>().updateTeacher(updated);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Teacher updated successfully!')));
+            },
+            child: const Text('Save'),
           ),
         ],
       ),

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance — EduManage Admin</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+
+  <div class="main-area">
+    <header class="topbar"><h1>Attendance Report</h1>
+      <div id="topbar-right">
+        <input type="date" class="form-input" id="date-filter" style="width:160px;padding:9px 12px;" onchange="loadAttendance()" />
+        <select class="form-input" id="class-filter" onchange="loadAttendance()" style="width:160px;padding:9px 12px;">
+          <option value="">All Classes</option>
+        </select>
+      </div>
+    </header>
+    <main class="page-content">
+      <!-- Summary cards -->
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.12);"><span style="font-size:22px;">✅</span></div><div class="stat-info"><p id="count-present">—</p><p>Present</p></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(239,68,68,0.12);"><span style="font-size:22px;">❌</span></div><div class="stat-info"><p id="count-absent">—</p><p>Absent</p></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.12);"><span style="font-size:22px;">⚠️</span></div><div class="stat-info"><p id="count-late">—</p><p>Late</p></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(99,102,241,0.12);"><span style="font-size:22px;">📊</span></div><div class="stat-info"><p id="pct-present">—</p><p>Percentage</p></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2>Attendance Details <span id="att-date" style="font-size:13px;color:var(--text-muted);font-weight:500;"></span></h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Student</th><th>Class</th><th>Subject</th><th>Status</th><th>Time</th></tr></thead>
+            <tbody id="att-tbody"><tr><td colspan="5"><div class="empty-state"><p>Select a date to view attendance records.</p></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth } from './js/auth.js';
+  import { injectSidebar, injectTopbarToggle } from './js/layout.js';
+  import { db } from './js/firebase-config.js';
+  import { formatDate, avatarHtml } from './js/app.js';
+  import { collection, getDocs, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+
+  requireAuth(async (user) => {
+    injectSidebar(user.email);
+    injectTopbarToggle();
+    // Default to today
+    document.getElementById('date-filter').value = new Date().toISOString().split('T')[0];
+    // Load classes for filter
+    const snap = await getDocs(query(collection(db, 'classes'), orderBy('name')));
+    const sel = document.getElementById('class-filter');
+    snap.docs.forEach(d => { const c = d.data(); sel.innerHTML += `<option value="${c.name} ${c.section || ''}">${c.name} ${c.section || ''}</option>`; });
+    await loadAttendance();
+  });
+
+  window.loadAttendance = async function () {
+    const dateVal = document.getElementById('date-filter').value;
+    const classVal = document.getElementById('class-filter').value;
+    document.getElementById('att-date').textContent = dateVal ? `— ${new Date(dateVal).toDateString()}` : '';
+
+    // Query attendance records (stored under attendance/{date}/records/)
+    let q = collection(db, 'attendance');
+    const snap = await getDocs(q);
+
+    // Flatten all attendance records; we'll filter client-side since structure may vary
+    let records = [];
+    for (const classDoc of snap.docs) {
+      const recSnap = await getDocs(collection(db, 'attendance', classDoc.id, 'records'));
+      recSnap.docs.forEach(r => records.push({ ...r.data(), docClass: classDoc.id }));
+    }
+
+    // Filter by date
+    if (dateVal) {
+      records = records.filter(r => {
+        const d = r.date?.toDate ? r.date.toDate() : new Date(r.date);
+        return d?.toISOString().startsWith(dateVal);
+      });
+    }
+    if (classVal) records = records.filter(r => r.className === classVal || r.docClass?.includes(classVal));
+
+    const present = records.filter(r => r.status === 'present').length;
+    const absent = records.filter(r => r.status === 'absent').length;
+    const late = records.filter(r => r.status === 'late').length;
+    const total = records.length;
+
+    document.getElementById('count-present').textContent = present;
+    document.getElementById('count-absent').textContent = absent;
+    document.getElementById('count-late').textContent = late;
+    document.getElementById('pct-present').textContent = total ? `${Math.round(present / total * 100)}%` : '—';
+
+    const tbody = document.getElementById('att-tbody');
+    const statusBadge = { present: 'badge-success', absent: 'badge-danger', late: 'badge-warning' };
+    if (!records.length) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>No attendance records found for this date/class.</p></div></td></tr>'; return; }
+    tbody.innerHTML = records.map(r => `
+      <tr>
+        <td><div class="flex items-center gap-2">${avatarHtml(r.studentName || '?')}<span style="font-weight:600;">${r.studentName || '—'}</span></div></td>
+        <td>${r.className || r.docClass || '—'}</td>
+        <td>${r.subject || '—'}</td>
+        <td><span class="badge ${statusBadge[r.status] || 'badge-gray'}">${r.status || '—'}</span></td>
+        <td>${formatDate(r.date)}</td>
+      </tr>`).join('');
+  };
+</script>
+</body>
+</html>

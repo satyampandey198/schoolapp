@@ -13,7 +13,12 @@ import '../../views/teacher/homework_screen.dart';
 import '../../views/student/student_dashboard.dart';
 import '../../views/student/student_timetable_screen.dart';
 import '../../views/student/student_results_screen.dart';
+import '../../views/student/student_homework_screen.dart';
+import '../../views/student/student_complaints_screen.dart';
+import '../../views/teacher/teacher_complaints_screen.dart';
 import '../../views/common/notifications_screen.dart';
+import '../../views/common/send_notification_screen.dart';
+import '../../views/common/manage_account_screen.dart';
 import '../../views/admin/add_student_screen.dart';
 import '../../views/admin/admin_attendance_screen.dart';
 import '../../views/admin/send_timetable_screen.dart';
@@ -22,6 +27,9 @@ import '../../views/admin/manage_subjects_screen.dart';
 import '../../views/admin/admin_profile_screen.dart';
 import '../../views/admin/student_list_screen.dart';
 import '../../views/teacher/teacher_students_screen.dart';
+import '../../views/admin/admin_timetable_screen.dart';
+import '../../views/admin/admin_complaints_screen.dart';
+import '../../views/admin/admin_exams_screen.dart';
 import '../constants/app_constants.dart';
 
 class AppRouter {
@@ -55,10 +63,15 @@ class AppRouter {
         GoRoute(path: AppConstants.routeTakeAttendance, builder: (_, __) => const AttendanceScreen()),
         GoRoute(path: AppConstants.routeMarksEntry, builder: (_, __) => const MarksEntryScreen()),
         GoRoute(path: AppConstants.routeHomeworkAdd, builder: (_, __) => const HomeworkScreen()),
+        GoRoute(path: AppConstants.routeTeacherComplaints, builder: (_, __) => const TeacherComplaintsScreen()),
         GoRoute(path: AppConstants.routeStudentDashboard, builder: (_, __) => const StudentDashboard()),
         GoRoute(path: AppConstants.routeStudentTimetable, builder: (_, __) => const StudentTimetableScreen()),
         GoRoute(path: AppConstants.routeStudentResults, builder: (_, __) => const StudentResultsScreen()),
+        GoRoute(path: AppConstants.routeStudentHomework, builder: (_, __) => const StudentHomeworkScreen()),
+        GoRoute(path: AppConstants.routeStudentComplaints, builder: (_, __) => const StudentComplaintsScreen()),
         GoRoute(path: AppConstants.routeNotifications, builder: (_, __) => const NotificationsScreen()),
+        GoRoute(path: AppConstants.routeSendNotification, builder: (_, __) => const SendNotificationScreen()),
+        GoRoute(path: AppConstants.routeManageAccount, builder: (_, __) => const ManageAccountScreen()),
         GoRoute(path: AppConstants.routeAddStudent, builder: (_, __) => const AddStudentScreen()),
         GoRoute(path: AppConstants.routeClassAttendance, builder: (_, __) => const AdminAttendanceScreen()),
         GoRoute(path: AppConstants.routeSendTimetable, builder: (_, __) => const SendTimetableScreen()),
@@ -67,6 +80,9 @@ class AppRouter {
         GoRoute(path: AppConstants.routeTeacherStudents, builder: (_, __) => const TeacherStudentsScreen()),
         GoRoute(path: AppConstants.routeAdminProfile, builder: (_, __) => const AdminProfileScreen()),
         GoRoute(path: AppConstants.routeStudentList, builder: (_, __) => const StudentListScreen()),
+        GoRoute(path: AppConstants.routeAdminTimetable, builder: (_, __) => const AdminTimetableScreen()),
+        GoRoute(path: AppConstants.routeAdminComplaints, builder: (_, __) => const AdminComplaintsScreen()),
+        GoRoute(path: AppConstants.routeAdminExams, builder: (_, __) => const AdminExamsScreen()),
       ],
     );
   }

@@ -20,34 +20,7 @@ class LectureModel {
   });
 }
 
-class MarkModel {
-  final String studentId;
-  final String studentName;
-  final String rollNumber;
-  int marks;
-  final int totalMarks;
-  final String subject;
 
-  MarkModel({
-    required this.studentId,
-    required this.studentName,
-    required this.rollNumber,
-    required this.marks,
-    required this.totalMarks,
-    required this.subject,
-  });
-
-  double get percentage => (marks / totalMarks) * 100;
-
-  String get grade {
-    if (percentage >= 90) return 'A+';
-    if (percentage >= 80) return 'A';
-    if (percentage >= 70) return 'B';
-    if (percentage >= 60) return 'C';
-    if (percentage >= 50) return 'D';
-    return 'F';
-  }
-}
 
 class TimetableEntry {
   final String day;

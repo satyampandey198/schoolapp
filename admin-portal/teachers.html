@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teachers — EduManage Admin</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-area">
+    <header class="topbar">
+      <h1>Teachers Management</h1>
+      <div id="topbar-right"><button class="btn btn-sm btn-primary" onclick="openAddModal()">+ Add Teacher</button></div>
+    </header>
+    <main class="page-content">
+      <div class="card">
+        <div class="card-header">
+          <h2>All Teachers <span id="teacher-count" style="font-size:12px;color:var(--text-muted);font-weight:500;"></span></h2>
+          <div class="search-bar">
+            <div class="search-input-wrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="search-input" placeholder="Search teachers..." oninput="filterTeachers()" />
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Teacher</th><th>Subject</th><th>Class</th><th>Phone</th><th>Email</th><th>Actions</th></tr></thead>
+            <tbody id="teachers-tbody"><tr><td colspan="6"><div class="empty-state"><p>Loading...</p></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="teacher-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Add Teacher</h3>
+      <button class="btn-ghost" onclick="document.getElementById('teacher-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id" />
+      <div class="grid-2">
+        <div class="form-group"><label>Full Name *</label><input class="form-input" id="t-name" placeholder="Teacher name" /></div>
+        <div class="form-group"><label>Employee ID</label><input class="form-input" id="t-empid" placeholder="e.g. TCH001" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Subject *</label><input class="form-input" id="t-subject" placeholder="e.g. Mathematics" /></div>
+        <div class="form-group"><label>Assigned Class</label><input class="form-input" id="t-class" placeholder="e.g. Class 10-A" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Phone</label><input class="form-input" id="t-phone" placeholder="Contact number" type="tel" /></div>
+        <div class="form-group"><label>Email</label><input class="form-input" id="t-email" placeholder="email@school.com" type="email" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Qualification</label><input class="form-input" id="t-qual" placeholder="e.g. M.Sc, B.Ed" /></div>
+        <div class="form-group"><label>Experience (Years)</label><input class="form-input" id="t-exp" placeholder="e.g. 5" type="number" /></div>
+      </div>
+      <div class="form-group"><label>Address</label><textarea class="form-input" id="t-address" rows="2" placeholder="Home address"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-outline" onclick="document.getElementById('teacher-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-sm btn-primary" style="width:auto;padding:9px 22px;" id="save-btn" onclick="saveTeacher()">Save Teacher</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth } from './js/auth.js';
+  import { db } from './js/firebase-config.js';
+  import { showToast, setLoading, avatarHtml } from './js/app.js';
+  import { injectSidebar, injectTopbarToggle } from './js/layout.js';
+  import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy, query } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+
+  let allTeachers = [];
+
+  requireAuth(async (user) => {
+    injectSidebar(user.email);
+    injectTopbarToggle();
+    await loadTeachers();
+  });
+  document.getElementById('logout-btn')?.addEventListener('click', () => import('./js/auth.js').then(m => m.logout()));
+
+  async function loadTeachers() {
+    const snap = await getDocs(query(collection(db, 'teachers'), orderBy('name')));
+    allTeachers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.getElementById('teacher-count').textContent = `(${allTeachers.length})`;
+    renderTable(allTeachers);
+  }
+
+  function renderTable(teachers) {
+    const tbody = document.getElementById('teachers-tbody');
+    if (!teachers.length) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>No teachers found.</p></div></td></tr>'; return; }
+    tbody.innerHTML = teachers.map(t => `
+      <tr>
+        <td><div class="flex items-center gap-2">${avatarHtml(t.name || '?')}<span style="font-weight:600;">${t.name || '—'}</span></div></td>
+        <td><span class="badge badge-info">${t.subject || '—'}</span></td>
+        <td>${t.className || '—'}</td>
+        <td>${t.phone || '—'}</td>
+        <td>${t.email || '—'}</td>
+        <td><div class="flex gap-2">
+          <button class="btn btn-sm btn-info" onclick="editTeacher('${t.id}')">Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteTeacher('${t.id}', '${t.name}')">Delete</button>
+        </div></td>
+      </tr>`).join('');
+  }
+
+  window.filterTeachers = () => {
+    const q = document.getElementById('search-input').value.toLowerCase();
+    renderTable(allTeachers.filter(t => t.name?.toLowerCase().includes(q) || t.subject?.toLowerCase().includes(q)));
+  };
+
+  window.openAddModal = () => {
+    document.getElementById('edit-id').value = '';
+    document.getElementById('modal-title').textContent = 'Add New Teacher';
+    ['t-name','t-empid','t-subject','t-class','t-phone','t-email','t-qual','t-exp','t-address'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('teacher-modal').classList.add('open');
+  };
+
+  window.editTeacher = (id) => {
+    const t = allTeachers.find(x => x.id === id);
+    if (!t) return;
+    document.getElementById('edit-id').value = id;
+    document.getElementById('modal-title').textContent = 'Edit Teacher';
+    document.getElementById('t-name').value = t.name || '';
+    document.getElementById('t-empid').value = t.employeeId || '';
+    document.getElementById('t-subject').value = t.subject || '';
+    document.getElementById('t-class').value = t.className || '';
+    document.getElementById('t-phone').value = t.phone || '';
+    document.getElementById('t-email').value = t.email || '';
+    document.getElementById('t-qual').value = t.qualification || '';
+    document.getElementById('t-exp').value = t.experience || '';
+    document.getElementById('t-address').value = t.address || '';
+    document.getElementById('teacher-modal').classList.add('open');
+  };
+
+  window.saveTeacher = async () => {
+    const name = document.getElementById('t-name').value.trim();
+    const subject = document.getElementById('t-subject').value.trim();
+    if (!name || !subject) { showToast('Name and Subject are required.', 'error'); return; }
+    const btn = document.getElementById('save-btn');
+    setLoading(btn, true);
+    const data = { name, subject, employeeId: document.getElementById('t-empid').value.trim(), className: document.getElementById('t-class').value.trim(), phone: document.getElementById('t-phone').value.trim(), email: document.getElementById('t-email').value.trim(), qualification: document.getElementById('t-qual').value.trim(), experience: document.getElementById('t-exp').value, address: document.getElementById('t-address').value.trim() };
+    try {
+      const editId = document.getElementById('edit-id').value;
+      if (editId) { await updateDoc(doc(db, 'teachers', editId), data); showToast('Teacher updated!', 'success'); }
+      else { await addDoc(collection(db, 'teachers'), data); showToast('Teacher added!', 'success'); }
+      document.getElementById('teacher-modal').classList.remove('open');
+      await loadTeachers();
+    } catch (e) { showToast('Error: ' + e.message, 'error'); } finally { setLoading(btn, false); }
+  };
+
+  window.deleteTeacher = async (id, name) => {
+    if (!confirm(`Delete teacher "${name}"?`)) return;
+    try { await deleteDoc(doc(db, 'teachers', id)); showToast('Teacher deleted.', 'info'); await loadTeachers(); }
+    catch (e) { showToast('Error: ' + e.message, 'error'); }
+  };
+</script>
+</body>
+</html>

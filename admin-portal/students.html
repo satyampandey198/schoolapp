@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Students — EduManage Admin</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+  <div class="main-area">
+    <header class="topbar">
+      <h1>Students Management</h1>
+      <div id="topbar-right">
+        <button class="btn btn-sm btn-primary" onclick="openAddModal()">+ Add Student</button>
+      </div>
+    </header>
+    <main class="page-content">
+      <div class="card">
+        <div class="card-header">
+          <h2>All Students <span id="student-count" style="font-size:12px;color:var(--text-muted);font-weight:500;"></span></h2>
+          <div class="search-bar">
+            <div class="search-input-wrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="search-input" placeholder="Search students..." oninput="filterStudents()" />
+            </div>
+            <select class="form-input" id="class-filter" onchange="filterStudents()" style="width:160px;padding:9px 12px;"><option value="">All Classes</option></select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Student</th><th>Roll No.</th><th>Class</th><th>Section</th><th>Parent</th><th>Phone</th><th>Actions</th></tr></thead>
+            <tbody id="students-tbody"><tr><td colspan="7"><div class="empty-state"><p>Loading...</p></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="modal-overlay" id="student-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Add Student</h3>
+      <button class="btn-ghost" onclick="document.getElementById('student-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id" />
+      <div class="grid-2">
+        <div class="form-group"><label>Full Name *</label><input class="form-input" id="s-name" placeholder="Student name" /></div>
+        <div class="form-group"><label>Roll Number *</label><input class="form-input" id="s-roll" placeholder="e.g. S001" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Class *</label><input class="form-input" id="s-class" placeholder="e.g. Class 10" /></div>
+        <div class="form-group"><label>Section</label><input class="form-input" id="s-section" placeholder="e.g. A" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Parent Name</label><input class="form-input" id="s-parent" placeholder="Father/Mother name" /></div>
+        <div class="form-group"><label>Phone</label><input class="form-input" id="s-phone" placeholder="Contact number" type="tel" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Date of Birth</label><input class="form-input" id="s-dob" type="date" /></div>
+        <div class="form-group"><label>Gender</label><select class="form-input" id="s-gender"><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select></div>
+      </div>
+      <div class="form-group"><label>Address</label><textarea class="form-input" id="s-address" placeholder="Home address" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-outline" onclick="document.getElementById('student-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-sm btn-primary" style="width:auto;padding:9px 22px;" id="save-btn" onclick="saveStudent()">Save Student</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth } from './js/auth.js';
+  import { db } from './js/firebase-config.js';
+  import { showToast, setLoading, avatarHtml } from './js/app.js';
+  import { injectSidebar, injectTopbarToggle } from './js/layout.js';
+  import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy, query } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+
+  let allStudents = [];
+
+  requireAuth(async (user) => {
+    injectSidebar(user.email);
+    injectTopbarToggle();
+    await loadStudents();
+  });
+
+  async function loadStudents() {
+    const snap = await getDocs(query(collection(db, 'students'), orderBy('name')));
+    allStudents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.getElementById('student-count').textContent = `(${allStudents.length})`;
+    const classes = [...new Set(allStudents.map(s => s.className).filter(Boolean))].sort();
+    const cf = document.getElementById('class-filter');
+    cf.innerHTML = '<option value="">All Classes</option>' + classes.map(c => `<option>${c}</option>`).join('');
+    renderTable(allStudents);
+  }
+
+  function renderTable(students) {
+    const tbody = document.getElementById('students-tbody');
+    if (!students.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>No students found.</p></div></td></tr>'; return; }
+    tbody.innerHTML = students.map(s => `
+      <tr>
+        <td><div class="flex items-center gap-2">${avatarHtml(s.name || '?')}<span style="font-weight:600;">${s.name || '—'}</span></div></td>
+        <td><span class="badge badge-purple">${s.rollNumber || '—'}</span></td>
+        <td>${s.className || '—'}</td>
+        <td>${s.section || '—'}</td>
+        <td>${s.parentName || '—'}</td>
+        <td>${s.phone || '—'}</td>
+        <td><div class="flex gap-2">
+          <button class="btn btn-sm btn-info" onclick="editStudent('${s.id}')">Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteStudent('${s.id}', '${(s.name||'').replace(/'/g,"\\'")}')">Delete</button>
+        </div></td>
+      </tr>`).join('');
+  }
+
+  window.filterStudents = () => {
+    const q = document.getElementById('search-input').value.toLowerCase();
+    const cls = document.getElementById('class-filter').value;
+    renderTable(allStudents.filter(s => (s.name?.toLowerCase().includes(q) || s.rollNumber?.toLowerCase().includes(q)) && (!cls || s.className === cls)));
+  };
+
+  window.openAddModal = () => {
+    document.getElementById('edit-id').value = '';
+    document.getElementById('modal-title').textContent = 'Add New Student';
+    ['s-name','s-roll','s-class','s-section','s-parent','s-phone','s-dob','s-address'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('s-gender').value = '';
+    document.getElementById('student-modal').classList.add('open');
+  };
+
+  window.editStudent = (id) => {
+    const s = allStudents.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('edit-id').value = id;
+    document.getElementById('modal-title').textContent = 'Edit Student';
+    document.getElementById('s-name').value = s.name || '';
+    document.getElementById('s-roll').value = s.rollNumber || '';
+    document.getElementById('s-class').value = s.className || '';
+    document.getElementById('s-section').value = s.section || '';
+    document.getElementById('s-parent').value = s.parentName || '';
+    document.getElementById('s-phone').value = s.phone || '';
+    document.getElementById('s-dob').value = s.dob || '';
+    document.getElementById('s-gender').value = s.gender || '';
+    document.getElementById('s-address').value = s.address || '';
+    document.getElementById('student-modal').classList.add('open');
+  };
+
+  window.saveStudent = async () => {
+    const name = document.getElementById('s-name').value.trim();
+    const rollNumber = document.getElementById('s-roll').value.trim();
+    const className = document.getElementById('s-class').value.trim();
+    if (!name || !rollNumber || !className) { showToast('Name, Roll, and Class are required.', 'error'); return; }
+    const btn = document.getElementById('save-btn');
+    setLoading(btn, true);
+    const data = { name, rollNumber, className, section: document.getElementById('s-section').value.trim(), parentName: document.getElementById('s-parent').value.trim(), phone: document.getElementById('s-phone').value.trim(), dob: document.getElementById('s-dob').value, gender: document.getElementById('s-gender').value, address: document.getElementById('s-address').value.trim() };
+    try {
+      const editId = document.getElementById('edit-id').value;
+      if (editId) { await updateDoc(doc(db, 'students', editId), data); showToast('Student updated!', 'success'); }
+      else { await addDoc(collection(db, 'students'), data); showToast('Student added!', 'success'); }
+      document.getElementById('student-modal').classList.remove('open');
+      await loadStudents();
+    } catch (e) { showToast('Error: ' + e.message, 'error'); } finally { setLoading(btn, false); }
+  };
+
+  window.deleteStudent = async (id, name) => {
+    if (!confirm(`Delete student "${name}"? This cannot be undone.`)) return;
+    try { await deleteDoc(doc(db, 'students', id)); showToast('Student deleted.', 'info'); await loadStudents(); }
+    catch (e) { showToast('Error: ' + e.message, 'error'); }
+  };
+</script>
+</body>
+</html>

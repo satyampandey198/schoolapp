@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
+import '../../viewmodels/auth/auth_viewmodel.dart';
 import '../../widgets/buttons/custom_button.dart';
+import '../../viewmodels/teacher/teacher_viewmodel.dart';
+import '../../models/homework_model.dart';
 
 class HomeworkScreen extends StatefulWidget {
   const HomeworkScreen({super.key});
@@ -12,19 +16,39 @@ class HomeworkScreen extends StatefulWidget {
 class _HomeworkScreenState extends State<HomeworkScreen> {
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
+  final List<TextEditingController> _instructionCtrls = [TextEditingController()];
+  
   String _selectedSubject = 'Mathematics';
-  String _selectedClass = 'Class 10-A';
+  String _selectedClassId = ''; // We will default this later
   DateTime _dueDate = DateTime.now().add(const Duration(days: 3));
   bool _isSaving = false;
 
   static const _subjects = ['Mathematics', 'English', 'Science', 'Hindi', 'History'];
-  static const _classes = ['Class 6-A', 'Class 7-A', 'Class 8-A', 'Class 9-A', 'Class 10-A'];
 
-  final List<Map<String, String>> _posted = [
-    {'title': 'Chapter 5 Exercises', 'subject': 'Mathematics', 'class': 'Class 10-A', 'due': 'Tomorrow'},
-    {'title': 'Essay: Environment', 'subject': 'English', 'class': 'Class 9-B', 'due': 'Friday'},
-    {'title': 'Lab Report', 'subject': 'Science', 'class': 'Class 10-A', 'due': 'Next Monday'},
-  ];
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _descCtrl.dispose();
+    for (var c in _instructionCtrls) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _addInstructionField() {
+    setState(() {
+      _instructionCtrls.add(TextEditingController());
+    });
+  }
+
+  void _removeInstructionField(int index) {
+    if (_instructionCtrls.length > 1) {
+      setState(() {
+        final ctrl = _instructionCtrls.removeAt(index);
+        ctrl.dispose();
+      });
+    }
+  }
 
   Future<void> _save() async {
     if (_titleCtrl.text.trim().isEmpty) {
@@ -33,23 +57,60 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
       );
       return;
     }
+    
+    final teacherVM = context.read<TeacherViewModel>();
+    final auth = context.read<AuthViewModel>();
+    final teacherClass = teacherVM.teacherModel?.assignedClass ?? '';
+    final classId = _selectedClassId.isEmpty
+        ? (teacherClass.isNotEmpty
+            ? 'c_${teacherClass.replaceAll(' ', '').replaceAll('-', '_')}'
+            : 'c_Class1_A')
+        : _selectedClassId;
+    final userId = auth.currentUser?.id ?? 'unknown_teacher';
+    
+    final instructions = _instructionCtrls
+        .map((c) => c.text.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+
     setState(() => _isSaving = true);
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-    setState(() {
-      _posted.insert(0, {
-        'title': _titleCtrl.text.trim(),
-        'subject': _selectedSubject,
-        'class': _selectedClass,
-        'due': '${_dueDate.day}/${_dueDate.month}/${_dueDate.year}',
+
+    try {
+      final hw = HomeworkModel(
+        id: '', // Firestore will generate
+        title: _titleCtrl.text.trim(),
+        description: _descCtrl.text.trim(),
+        subject: _selectedSubject,
+        classId: classId,
+        dueDate: _dueDate,
+        teacherId: userId,
+        instructions: instructions,
+        createdAt: DateTime.now(),
+      );
+
+      await context.read<TeacherViewModel>().addHomework(hw);
+
+      if (!mounted) return;
+      
+      setState(() {
+        _titleCtrl.clear();
+        _descCtrl.clear();
+        for (var c in _instructionCtrls) { c.dispose(); }
+        _instructionCtrls.clear();
+        _instructionCtrls.add(TextEditingController());
       });
-      _isSaving = false;
-      _titleCtrl.clear();
-      _descCtrl.clear();
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Homework posted!'), backgroundColor: Colors.green),
-    );
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Homework posted!'), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   Future<void> _pickDate() async {
@@ -63,15 +124,9 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
   }
 
   @override
-  void dispose() {
-    _titleCtrl.dispose();
-    _descCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final postedHomework = context.watch<TeacherViewModel>().homeworkList;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Homework & Notes')),
@@ -105,7 +160,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
                   const SizedBox(height: 14),
                   TextField(
                     controller: _descCtrl,
-                    maxLines: 3,
+                    maxLines: 2,
                     decoration: InputDecoration(
                       labelText: 'Description (optional)',
                       hintText: 'Add details about the homework…',
@@ -113,6 +168,43 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
+                  const SizedBox(height: 14),
+                  
+                  // Multiple Instructions
+                  Text('Instructions/Notes', style: TextStyle(fontWeight: FontWeight.bold, color: cs.primary)),
+                  const SizedBox(height: 8),
+                  ..._instructionCtrls.asMap().entries.map((entry) {
+                    int idx = entry.key;
+                    var ctrl = entry.value;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: ctrl,
+                              decoration: InputDecoration(
+                                hintText: 'Instruction ${idx + 1}',
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                          if (_instructionCtrls.length > 1)
+                            IconButton(
+                              icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                              onPressed: () => _removeInstructionField(idx),
+                            ),
+                        ],
+                      ),
+                    );
+                  }),
+                  TextButton.icon(
+                    onPressed: _addInstructionField,
+                    icon: const Icon(Icons.add_circle_outline),
+                    label: const Text('Add another instruction'),
+                  ),
+
                   const SizedBox(height: 14),
                   Row(
                     children: [
@@ -126,19 +218,6 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
                           ),
                           items: _subjects.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                           onChanged: (v) => setState(() => _selectedSubject = v!),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedClass,
-                          decoration: InputDecoration(
-                            labelText: 'Class',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                          ),
-                          items: _classes.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                          onChanged: (v) => setState(() => _selectedClass = v!),
                         ),
                       ),
                     ],
@@ -174,7 +253,15 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
             Text('Posted Homework', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 14),
 
-            ..._posted.asMap().entries.map((entry) {
+            if (postedHomework.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Text('No homework posted yet.', style: TextStyle(color: cs.onSurface.withValues(alpha: 0.5))),
+                ),
+              ),
+
+            ...postedHomework.asMap().entries.map((entry) {
               final i = entry.key;
               final hw = entry.value;
               return Container(
@@ -200,22 +287,14 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(hw['title']!, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                          Text(hw.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                           const SizedBox(height: 2),
-                          Text('${hw['subject']} • ${hw['class']}',
+                          Text('${hw.subject} • Due: ${hw.dueDate.day}/${hw.dueDate.month}/${hw.dueDate.year}',
                               style: TextStyle(fontSize: 12, color: cs.onSurface.withValues(alpha: 0.6))),
+                          if (hw.instructions.isNotEmpty)
+                             Text('${hw.instructions.length} instructions', style: TextStyle(fontSize: 11, color: cs.primary)),
                         ],
                       ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-                      ),
-                      child: Text('Due ${hw['due']}',
-                          style: const TextStyle(fontSize: 11, color: Colors.orange, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),

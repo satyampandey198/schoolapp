@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Timetable — EduManage Admin</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .tt-grid { display: grid; grid-template-columns: 80px repeat(5, 1fr); gap: 4px; }
+    .tt-header { background: var(--surface2); padding: 10px; text-align: center; border-radius: 6px; font-size: 12px; font-weight: 700; color: var(--text-dim); }
+    .tt-time { background: var(--surface2); padding: 10px; border-radius: 6px; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; justify-content: center; text-align: center; }
+    .tt-slot { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px; min-height: 72px; cursor: pointer; transition: all 0.15s; position: relative; }
+    .tt-slot:hover { border-color: var(--primary); }
+    .tt-slot.filled { background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.3); }
+    .tt-slot .subject { font-size: 12px; font-weight: 700; color: var(--text); }
+    .tt-slot .teacher { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .tt-slot .del-btn { position: absolute; top: 4px; right: 4px; background: rgba(239,68,68,0.15); border: none; border-radius: 4px; padding: 2px 6px; font-size: 10px; color: #fca5a5; cursor: pointer; display: none; }
+    .tt-slot:hover .del-btn { display: block; }
+    .tt-slot .add-text { font-size: 11px; color: var(--text-muted); text-align: center; width: 100%; margin-top: 8px; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+
+  <div class="main-area">
+    <header class="topbar">
+      <h1>Timetable Builder</h1>
+      <div id="topbar-right">
+        <select class="form-input" id="class-select" onchange="loadTimetable()" style="width:180px;padding:9px 12px;">
+          <option value="">Select Class...</option>
+        </select>
+      </div>
+    </header>
+    <main class="page-content">
+      <div class="card">
+        <div class="card-header"><h2 id="tt-title">Select a class to view timetable</h2></div>
+        <div class="card-body">
+          <div id="tt-container">
+            <div class="empty-state"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><p>Select a class to build its timetable</p></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Slot Modal -->
+<div class="modal-overlay" id="slot-modal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <h3 id="slot-modal-title">Add Lecture</h3>
+      <button class="btn-ghost" onclick="document.getElementById('slot-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Subject *</label><input class="form-input" id="slot-subject" placeholder="e.g. Mathematics" /></div>
+      <div class="form-group"><label>Teacher *</label><input class="form-input" id="slot-teacher" placeholder="Teacher name" /></div>
+      <div class="form-group"><label>Room</label><input class="form-input" id="slot-room" placeholder="e.g. Room 101" /></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-outline" onclick="document.getElementById('slot-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-sm btn-primary" style="width:auto;padding:9px 22px;" id="slot-save-btn" onclick="saveSlot()">Save Lecture</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth } from './js/auth.js';
+  import { injectSidebar, injectTopbarToggle } from './js/layout.js';
+  import { db } from './js/firebase-config.js';
+  import { showToast, setLoading } from './js/app.js';
+  import { collection, getDocs, setDoc, deleteDoc, doc, orderBy, query } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+
+  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const TIMES = ['8:00–9:00', '9:00–10:00', '10:00–11:00', '11:30–12:30', '12:30–1:30', '2:00–3:00', '3:00–4:00'];
+  let currentSlot = null;
+  let timetableData = {};
+
+  requireAuth(async (user) => {
+    injectSidebar(user.email);
+    injectTopbarToggle();
+    const snap = await getDocs(query(collection(db, 'classes'), orderBy('name')));
+    const sel = document.getElementById('class-select');
+    snap.docs.forEach(d => {
+      const c = d.data();
+      sel.innerHTML += `<option value="${d.id}">${c.name} ${c.section || ''}</option>`;
+    });
+  });
+
+  window.loadTimetable = async function () {
+    const classId = document.getElementById('class-select').value;
+    if (!classId) return;
+    document.getElementById('tt-title').textContent = 'Weekly Timetable — ' + document.getElementById('class-select').selectedOptions[0].text;
+    timetableData = {};
+    const snap = await getDocs(collection(db, 'classes', classId, 'timetable'));
+    snap.docs.forEach(d => { timetableData[d.id] = d.data(); });
+    renderTimetable(classId);
+  };
+
+  function renderTimetable(classId) {
+    const container = document.getElementById('tt-container');
+    let html = '<div class="tt-grid" style="margin-bottom:4px;"><div></div>';
+    DAYS.forEach(d => html += `<div class="tt-header">${d}</div>`);
+    html += '</div>';
+    TIMES.forEach((time, ti) => {
+      html += `<div class="tt-grid" style="margin-bottom:4px;"><div class="tt-time">${time}</div>`;
+      DAYS.forEach((day, di) => {
+        const key = `${day}_${ti}`;
+        const slot = timetableData[key];
+        if (slot) {
+          html += `<div class="tt-slot filled" onclick="openSlotModal('${classId}','${day}',${ti})">
+            <button class="del-btn" onclick="event.stopPropagation();deleteSlot('${classId}','${key}')">✕</button>
+            <div class="subject">${slot.subject}</div>
+            <div class="teacher">${slot.teacher}</div>
+            ${slot.room ? `<div class="teacher">📍 ${slot.room}</div>` : ''}
+          </div>`;
+        } else {
+          html += `<div class="tt-slot" onclick="openSlotModal('${classId}','${day}',${ti})"><div class="add-text">+ Add</div></div>`;
+        }
+      });
+      html += '</div>';
+    });
+    container.innerHTML = html;
+  }
+
+  window.openSlotModal = function (classId, day, timeIdx) {
+    currentSlot = { classId, day, timeIdx, key: `${day}_${timeIdx}` };
+    const existing = timetableData[currentSlot.key];
+    document.getElementById('slot-modal-title').textContent = `${day} — ${TIMES[timeIdx]}`;
+    document.getElementById('slot-subject').value = existing?.subject || '';
+    document.getElementById('slot-teacher').value = existing?.teacher || '';
+    document.getElementById('slot-room').value = existing?.room || '';
+    document.getElementById('slot-modal').classList.add('open');
+  };
+
+  window.saveSlot = async function () {
+    if (!currentSlot) return;
+    const subject = document.getElementById('slot-subject').value.trim();
+    const teacher = document.getElementById('slot-teacher').value.trim();
+    if (!subject || !teacher) { showToast('Subject and Teacher are required.', 'error'); return; }
+    const btn = document.getElementById('slot-save-btn');
+    setLoading(btn, true);
+    try {
+      await setDoc(doc(db, 'classes', currentSlot.classId, 'timetable', currentSlot.key), {
+        subject, teacher, room: document.getElementById('slot-room').value.trim(),
+        day: currentSlot.day, timeIndex: currentSlot.timeIdx, timeSlot: TIMES[currentSlot.timeIdx]
+      });
+      timetableData[currentSlot.key] = { subject, teacher, room: document.getElementById('slot-room').value.trim() };
+      showToast('Lecture saved!', 'success');
+      document.getElementById('slot-modal').classList.remove('open');
+      renderTimetable(currentSlot.classId);
+    } catch (e) { showToast('Error: ' + e.message, 'error'); } finally { setLoading(btn, false); }
+  };
+
+  window.deleteSlot = async function (classId, key) {
+    if (!confirm('Remove this lecture?')) return;
+    try {
+      await deleteDoc(doc(db, 'classes', classId, 'timetable', key));
+      delete timetableData[key];
+      showToast('Lecture removed.', 'info');
+      renderTimetable(classId);
+    } catch (e) { showToast('Error: ' + e.message, 'error'); }
+  };
+</script>
+</body>
+</html>

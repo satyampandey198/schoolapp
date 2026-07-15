@@ -54,33 +54,28 @@ class _SplashScreenState extends State<SplashScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 100,
-                height: 100,
+                width: 120,
+                height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF2563EB).withValues(alpha: 0.5),
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.3),
                       blurRadius: 30,
                       spreadRadius: 5,
                     ),
                   ],
                 ),
-                child: const Center(
-                  child: Text('🏫', style: TextStyle(fontSize: 46)),
+                child: ClipOval(
+                  child: Image.asset('assets/images/App-logo.png', fit: BoxFit.cover),
                 ),
               ).animate().scale(duration: 600.ms, curve: Curves.elasticOut),
               const SizedBox(height: 28),
               const Text(
-                'EduManage Pro',
+                'schoolonly',
                 style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 34,
+                  fontWeight: FontWeight.w900,
                   color: Colors.white,
                   letterSpacing: -0.5,
                 ),

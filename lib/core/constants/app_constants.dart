@@ -23,9 +23,13 @@ class AppConstants {
   static const String routeTakeAttendance = '/teacher/attendance';
   static const String routeMarksEntry = '/teacher/marks';
   static const String routeHomeworkAdd = '/teacher/homework';
+  static const String routeTeacherComplaints = '/teacher/complaints';
+  static const String routeManageAccount = '/manage-account';
   static const String routeStudentTimetable = '/student/timetable';
   static const String routeStudentResults = '/student/results';
+  static const String routeStudentHomework = '/student/homework';
   static const String routeStudentAttendance = '/student/attendance';
+  static const String routeStudentComplaints = '/student/complaints';
   static const String routeNotifications = '/notifications';
   static const String routeAddStudent = '/admin/students/add';
   static const String routeClassAttendance = '/admin/attendance';
@@ -35,6 +39,9 @@ class AppConstants {
   static const String routeTeacherStudents = '/teacher/students';
   static const String routeAdminProfile = '/admin/profile';
   static const String routeStudentList = '/admin/students';
+  static const String routeAdminTimetable = '/admin/timetable/manage';
+  static const String routeAdminComplaints = '/admin/complaints';
+  static const String routeAdminExams = '/admin/exams';
 
   // Spacing
   static const double paddingXS = 4.0;

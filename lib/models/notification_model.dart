@@ -5,6 +5,8 @@ class NotificationModel {
   final String type; // 'info', 'warning', 'success', 'alert'
   final DateTime createdAt;
   final String? targetRole;
+  final String? targetType; // 'all_teachers', 'all_students', 'class', 'teacher', 'student'
+  final String? targetId;   // specific ID for class, teacher, or student
 
   // Read receipts: maps studentId/userId -> name
   final Map<String, String> readBy;
@@ -16,6 +18,8 @@ class NotificationModel {
     this.type = 'info',
     required this.createdAt,
     this.targetRole,
+    this.targetType,
+    this.targetId,
     Map<String, String>? readBy,
   }) : readBy = readBy ?? {};
 
@@ -33,6 +37,8 @@ class NotificationModel {
       type: type,
       createdAt: createdAt,
       targetRole: targetRole,
+      targetType: targetType,
+      targetId: targetId,
       readBy: readBy ?? this.readBy,
     );
   }

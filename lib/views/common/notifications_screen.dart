@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/admin/admin_viewmodel.dart';
@@ -58,7 +59,7 @@ class NotificationsScreen extends StatelessWidget {
             ),
       floatingActionButton: role == AppConstants.roleAdmin || role == AppConstants.roleTeacher
           ? FloatingActionButton.extended(
-              onPressed: () => _showSendDialog(context),
+              onPressed: () => context.push(AppConstants.routeSendNotification),
               icon: const Icon(Icons.send_rounded),
               label: const Text('Send Notification'),
             )
@@ -66,63 +67,7 @@ class NotificationsScreen extends StatelessWidget {
     );
   }
 
-  void _showSendDialog(BuildContext context) {
-    final msgCtrl = TextEditingController();
-    final titleCtrl = TextEditingController();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 20, right: 20, top: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Send Notification',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: titleCtrl,
-              decoration: InputDecoration(
-                labelText: 'Title',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: msgCtrl,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: 'Message',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Notification sent!'), backgroundColor: Colors.green),
-                );
-              },
-              icon: const Icon(Icons.send_rounded),
-              label: const Text('Send'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   void _showReadReceiptsDialog(BuildContext context, NotificationModel notification) {
     showDialog(

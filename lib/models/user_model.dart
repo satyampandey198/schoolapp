@@ -35,7 +35,7 @@ class UserModel {
   String get roleLabel {
     switch (role) {
       case 'admin':
-        return 'Administrator';
+        return 'Principal';
       case 'teacher':
         return 'Teacher';
       default:

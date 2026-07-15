@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Classes — EduManage Admin</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+
+  <div class="main-area">
+    <header class="topbar"><h1>Classes Management</h1><div id="topbar-right"><button class="btn btn-sm btn-primary" onclick="openAddModal()">+ Add Class</button></div></header>
+    <main class="page-content">
+      <div class="card">
+        <div class="card-header"><h2>All Classes <span id="class-count" style="font-size:12px;color:var(--text-muted);"></span></h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Class Name</th><th>Section</th><th>Class Teacher</th><th>Students</th><th>Subjects</th><th>Actions</th></tr></thead>
+            <tbody id="classes-tbody"><tr><td colspan="6"><div class="empty-state"><p>Loading...</p></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="modal-overlay" id="class-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Add Class</h3>
+      <button class="btn-ghost" onclick="document.getElementById('class-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id" />
+      <div class="grid-2">
+        <div class="form-group"><label>Class Name *</label><input class="form-input" id="c-name" placeholder="e.g. Class 10" /></div>
+        <div class="form-group"><label>Section *</label><input class="form-input" id="c-section" placeholder="e.g. A" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Class Teacher</label><input class="form-input" id="c-teacher" placeholder="Teacher name" /></div>
+        <div class="form-group"><label>Room Number</label><input class="form-input" id="c-room" placeholder="e.g. 101" /></div>
+      </div>
+      <div class="form-group"><label>Subjects (comma-separated)</label><input class="form-input" id="c-subjects" placeholder="Math, Science, English..." /></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-outline" onclick="document.getElementById('class-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-sm btn-primary" style="width:auto;padding:9px 22px;" id="save-btn" onclick="saveClass()">Save Class</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth } from './js/auth.js';
+  import { injectSidebar, injectTopbarToggle } from './js/layout.js';
+  import { db } from './js/firebase-config.js';
+  import { showToast, setLoading } from './js/app.js';
+  import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy, query } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+
+  let allClasses = [];
+
+  requireAuth(async (user) => {
+    injectSidebar(user.email);
+    injectTopbarToggle();
+    await loadClasses();
+  });
+
+  async function loadClasses() {
+    const snap = await getDocs(query(collection(db, 'classes'), orderBy('name')));
+    allClasses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.getElementById('class-count').textContent = `(${allClasses.length})`;
+    const tbody = document.getElementById('classes-tbody');
+    if (!allClasses.length) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>No classes found. Add your first class.</p></div></td></tr>'; return; }
+    tbody.innerHTML = allClasses.map(c => `
+      <tr>
+        <td style="font-weight:700;">${c.name || '—'}</td>
+        <td><span class="badge badge-purple">${c.section || '—'}</span></td>
+        <td>${c.classTeacher || '—'}</td>
+        <td>${c.studentCount || 0}</td>
+        <td><span style="font-size:12px;color:var(--text-muted);">${(c.subjects || []).join(', ') || '—'}</span></td>
+        <td><div class="flex gap-2">
+          <button class="btn btn-sm btn-info" onclick="editClass('${c.id}')">Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteClass('${c.id}', '${c.name}')">Delete</button>
+        </div></td>
+      </tr>`).join('');
+  }
+
+  window.openAddModal = () => {
+    document.getElementById('edit-id').value = '';
+    document.getElementById('modal-title').textContent = 'Add New Class';
+    ['c-name','c-section','c-teacher','c-room','c-subjects'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('class-modal').classList.add('open');
+  };
+
+  window.editClass = (id) => {
+    const c = allClasses.find(x => x.id === id);
+    if (!c) return;
+    document.getElementById('edit-id').value = id;
+    document.getElementById('modal-title').textContent = 'Edit Class';
+    document.getElementById('c-name').value = c.name || '';
+    document.getElementById('c-section').value = c.section || '';
+    document.getElementById('c-teacher').value = c.classTeacher || '';
+    document.getElementById('c-room').value = c.roomNumber || '';
+    document.getElementById('c-subjects').value = (c.subjects || []).join(', ');
+    document.getElementById('class-modal').classList.add('open');
+  };
+
+  window.saveClass = async () => {
+    const name = document.getElementById('c-name').value.trim();
+    const section = document.getElementById('c-section').value.trim();
+    if (!name || !section) { showToast('Class Name and Section are required.', 'error'); return; }
+    const btn = document.getElementById('save-btn');
+    setLoading(btn, true);
+    const subjectsRaw = document.getElementById('c-subjects').value.trim();
+    const data = { name, section, classTeacher: document.getElementById('c-teacher').value.trim(), roomNumber: document.getElementById('c-room').value.trim(), subjects: subjectsRaw ? subjectsRaw.split(',').map(s => s.trim()) : [] };
+    try {
+      const editId = document.getElementById('edit-id').value;
+      if (editId) { await updateDoc(doc(db, 'classes', editId), data); showToast('Class updated!', 'success'); }
+      else { await addDoc(collection(db, 'classes'), data); showToast('Class added!', 'success'); }
+      document.getElementById('class-modal').classList.remove('open');
+      await loadClasses();
+    } catch (e) { showToast('Error: ' + e.message, 'error'); } finally { setLoading(btn, false); }
+  };
+
+  window.deleteClass = async (id, name) => {
+    if (!confirm(`Delete class "${name}"?`)) return;
+    try { await deleteDoc(doc(db, 'classes', id)); showToast('Class deleted.', 'info'); await loadClasses(); }
+    catch (e) { showToast('Error: ' + e.message, 'error'); }
+  };
+</script>
+</body>
+</html>

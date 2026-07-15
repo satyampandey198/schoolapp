@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/teacher/teacher_viewmodel.dart';
+import '../../models/exam_model.dart';
+import 'package:intl/intl.dart';
+import '../../widgets/common/shimmer_loader.dart';
 
 class MarksEntryScreen extends StatefulWidget {
   const MarksEntryScreen({super.key});
@@ -10,7 +13,7 @@ class MarksEntryScreen extends StatefulWidget {
 }
 
 class _MarksEntryScreenState extends State<MarksEntryScreen> {
-  String? _selectedSubject;
+  ExamModel? _selectedExam;
 
   Color _gradeColor(String grade) {
     switch (grade) {
@@ -26,12 +29,19 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
   Widget build(BuildContext context) {
     final vm = context.watch<TeacherViewModel>();
     final cs = Theme.of(context).colorScheme;
-    final subjects = vm.assignedSubjects;
-    if (_selectedSubject == null && subjects.isNotEmpty) {
-      _selectedSubject = subjects.first;
+    
+    // Filter exams by subjects assigned to this teacher
+    final teacherExams = vm.exams.where((e) => vm.assignedSubjects.contains(e.subject)).toList();
+    if (_selectedExam == null && teacherExams.isNotEmpty) {
+      _selectedExam = teacherExams.first;
     }
 
-    final filteredMarks = vm.marks.where((m) => m.subject == _selectedSubject).toList();
+    // Filter marks for selected exam
+    final filteredMarks = _selectedExam == null ? [] : vm.marks.where((m) => m.examId == _selectedExam!.id).toList();
+    
+    // Cross-reference with class students to ensure all students have an entry row
+    // In a real app we might only fetch students for _selectedExam!.classId
+    final classStudents = vm.classStudents; 
 
     return Scaffold(
       appBar: AppBar(
@@ -40,106 +50,136 @@ class _MarksEntryScreenState extends State<MarksEntryScreen> {
           TextButton.icon(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Marks saved!'), backgroundColor: Colors.green),
+                const SnackBar(content: Text('Marks saved automatically!'), backgroundColor: Colors.green),
               );
             },
-            icon: const Icon(Icons.save_rounded),
-            label: const Text('Save'),
+            icon: const Icon(Icons.check_circle_outline),
+            label: const Text('Done'),
           ),
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
-            height: 48,
-            child: subjects.isEmpty 
-              ? const Center(child: Text('No subjects assigned'))
-              : ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: subjects.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, i) {
-                final s = subjects[i];
-                final selected = s == _selectedSubject;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedSubject = s),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: selected ? cs.primary : cs.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: selected ? cs.primary : cs.outline.withValues(alpha: 0.4)),
-                    ),
-                    child: Text(s, style: TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 13,
-                      color: selected ? Colors.white : cs.onSurface.withValues(alpha: 0.7))),
-                  ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: DropdownButtonFormField<ExamModel>(
+              decoration: InputDecoration(
+                labelText: 'Select Exam',
+                filled: true,
+                fillColor: cs.surface,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              value: _selectedExam,
+              items: teacherExams.map((e) {
+                return DropdownMenuItem(
+                  value: e,
+                  child: Text('${e.name} - ${e.subject} (${DateFormat('MMM d').format(e.date)})'),
                 );
-              },
+              }).toList(),
+              onChanged: (v) => setState(() => _selectedExam = v),
+              hint: const Text('Select an exam to enter marks'),
             ),
           ),
+          if (_selectedExam != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Class ID: ${_selectedExam!.classId}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text('Total Marks: ${_selectedExam!.totalMarks}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                ],
+              ),
+            ),
           const Divider(height: 16),
           Expanded(
-            child: filteredMarks.isEmpty
-                ? const Center(child: Text('No students found for this subject.'))
-                : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: filteredMarks.length,
-              itemBuilder: (_, i) {
-                final m = filteredMarks[i];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: cs.surface, borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: cs.outline.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(m.studentName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                          Text(m.rollNumber, style: TextStyle(fontSize: 11, color: cs.onSurface.withValues(alpha: 0.55))),
-                        ],
-                      )),
-                      SizedBox(
-                        width: 70,
-                        child: TextFormField(
-                          initialValue: m.marks.toString(),
-                          keyboardType: TextInputType.number,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                          decoration: InputDecoration(
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          onChanged: (v) {
-                            final val = (int.tryParse(v) ?? m.marks).clamp(0, 100);
-                            context.read<TeacherViewModel>().updateMark(m.studentId, val);
-                          },
-                        ),
+            child: vm.isLoadingDashboard 
+                ? const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: ShimmerList(count: 6, itemHeight: 60))
+                : _selectedExam == null
+                ? const Center(child: Text('No exams found for your assigned subjects.'))
+                : classStudents.isEmpty
+                    ? const Center(child: Text('No students in this class.'))
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: classStudents.length,
+                        itemBuilder: (_, i) {
+                          final student = classStudents[i];
+                          // We use a safe getter for UI mapping if it doesn't exist yet
+                          final hasMark = filteredMarks.any((mark) => mark.studentId == student.id);
+                          final currentMark = hasMark ? filteredMarks.firstWhere((mark) => mark.studentId == student.id) : null;
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: cs.surface, 
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: cs.outline.withValues(alpha: 0.2)),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(student.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    Text(student.rollNumber, style: TextStyle(fontSize: 11, color: cs.onSurface.withValues(alpha: 0.55))),
+                                  ],
+                                )),
+                                SizedBox(
+                                  width: 70,
+                                  child: TextFormField(
+                                    initialValue: currentMark?.marks.toString() ?? '',
+                                    keyboardType: TextInputType.number,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      hintText: '-',
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                    onChanged: (v) {
+                                      final val = int.tryParse(v);
+                                      if (val != null) {
+                                        try {
+                                          context.read<TeacherViewModel>().updateMark(
+                                            student.id, val,
+                                            examId: _selectedExam!.id,
+                                            subject: _selectedExam!.subject,
+                                            examType: _selectedExam!.name,
+                                            studentName: student.name,
+                                            rollNumber: student.rollNumber,
+                                          );
+                                        } catch (e) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+                                          );
+                                        }
+                                      }
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                if (currentMark != null)
+                                  Container(
+                                    width: 32,
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: _gradeColor(currentMark.grade).withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(currentMark.grade,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _gradeColor(currentMark.grade))),
+                                  )
+                                else
+                                  const SizedBox(width: 32),
+                              ],
+                            ),
+                          );
+                        },
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 32,
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: _gradeColor(m.grade).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(m.grade,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _gradeColor(m.grade))),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
           ),
         ],
       ),

@@ -40,7 +40,7 @@ class FirebaseSeeder {
         final classId = 'c_${className.replaceAll(' ', '')}_$section';
         
         await db.collection('classes').doc(classId).set({
-          'name': className,
+          'name': className, 
           'section': section,
           'totalStudents': 10,
           'classTeacherId': '',

@@ -141,32 +141,41 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
                 const SizedBox(height: 20),
                 CustomButton(
                   label: existing == null ? 'Create Class' : 'Update Class',
-                  onPressed: () {
+                  onPressed: () async {
                     if (nameCtrl.text.trim().isEmpty) return;
                     final teacher = selectedClassTeacherId != null
                         ? vm.teachers.firstWhere((t) => t.id == selectedClassTeacherId, orElse: () => const TeacherModel(id: '', name: '', subject: '', assignedClass: '', experience: '', email: '', phone: ''))
                         : null;
-                    if (existing == null) {
-                      vm.addClass(ClassModel(
-                        id: 'c_${DateTime.now().millisecondsSinceEpoch}',
-                        name: nameCtrl.text.trim(),
-                        section: sectionCtrl.text.trim(),
-                        totalStudents: int.tryParse(totalCtrl.text) ?? 0,
-                        classTeacherId: teacher?.id ?? '',
-                        classTeacherName: teacher?.name ?? '',
-                        subjects: List.from(selectedSubjects),
-                      ));
-                    } else {
-                      vm.updateClass(existing.copyWith(
-                        name: nameCtrl.text.trim(),
-                        section: sectionCtrl.text.trim(),
-                        totalStudents: int.tryParse(totalCtrl.text) ?? existing.totalStudents,
-                        classTeacherId: teacher?.id ?? existing.classTeacherId,
-                        classTeacherName: teacher?.name ?? existing.classTeacherName,
-                        subjects: List.from(selectedSubjects),
-                      ));
+                    
+                    try {
+                      if (existing == null) {
+                        await vm.addClass(ClassModel(
+                          id: 'c_${DateTime.now().millisecondsSinceEpoch}',
+                          name: nameCtrl.text.trim(),
+                          section: sectionCtrl.text.trim(),
+                          totalStudents: int.tryParse(totalCtrl.text) ?? 0,
+                          classTeacherId: teacher?.id ?? '',
+                          classTeacherName: teacher?.name ?? '',
+                          subjects: List.from(selectedSubjects),
+                        ));
+                      } else {
+                        await vm.updateClass(existing.copyWith(
+                          name: nameCtrl.text.trim(),
+                          section: sectionCtrl.text.trim(),
+                          totalStudents: int.tryParse(totalCtrl.text) ?? existing.totalStudents,
+                          classTeacherId: teacher?.id ?? existing.classTeacherId,
+                          classTeacherName: teacher?.name ?? existing.classTeacherName,
+                          subjects: List.from(selectedSubjects),
+                        ));
+                      }
+                      if (context.mounted) Navigator.pop(ctx);
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
+                        );
+                      }
                     }
-                    Navigator.pop(ctx);
                   },
                 ),
                 const SizedBox(height: 8),
@@ -241,10 +250,18 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
               const SizedBox(height: 16),
               CustomButton(
                 label: 'Save Assignments',
-                onPressed: () {
-                  vm.updateClass(cls.copyWith(lectureTeachers: entries));
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Assignments saved!')));
+                onPressed: () async {
+                  try {
+                    await vm.updateClass(cls.copyWith(lectureTeachers: entries));
+                    if (context.mounted) {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Assignments saved!')));
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red));
+                    }
+                  }
                 },
               ),
             ],
@@ -263,7 +280,16 @@ class _ManageClassesScreenState extends State<ManageClassesScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
-            onPressed: () { Navigator.pop(context); vm.deleteClass(cls.id); },
+            onPressed: () async { 
+              Navigator.pop(context); 
+              try {
+                await vm.deleteClass(cls.id); 
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red));
+                }
+              }
+            },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
           ),

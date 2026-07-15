@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notifications — EduManage Admin</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+
+  <div class="main-area">
+    <header class="topbar"><h1>Send Notifications</h1></header>
+    <main class="page-content">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
+
+        <!-- Compose Form -->
+        <div class="card">
+          <div class="card-header"><h2>📢 Compose Notification</h2></div>
+          <div class="card-body">
+            <div class="form-group"><label>Title *</label><input class="form-input" id="n-title" placeholder="Notification title..." /></div>
+            <div class="form-group"><label>Message *</label><textarea class="form-input" id="n-message" rows="4" placeholder="Write your message here..."></textarea></div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label>Target Audience *</label>
+                <select class="form-input" id="n-target" onchange="updateTargetInput()">
+                  <option value="all_students">All Students</option>
+                  <option value="all_teachers">All Teachers</option>
+                  <option value="class">Specific Class</option>
+                  <option value="student">Specific Student</option>
+                  <option value="teacher">Specific Teacher</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Type</label>
+                <select class="form-input" id="n-type">
+                  <option value="info">ℹ️ Information</option>
+                  <option value="alert">⚠️ Alert</option>
+                  <option value="assignment">📚 Assignment</option>
+                  <option value="event">🎉 Event</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group" id="target-id-group" style="display:none;">
+              <label id="target-id-label">Target ID</label>
+              <input class="form-input" id="n-target-id" placeholder="Enter class name or user ID..." />
+            </div>
+            <div class="form-group"><label>Image URL (optional)</label><input class="form-input" id="n-image" placeholder="https://..." type="url" /></div>
+            <button class="btn btn-primary" id="send-btn" onclick="sendNotification()" style="margin-top:8px;">🔔 Send Notification</button>
+          </div>
+        </div>
+
+        <!-- Recent Notifications -->
+        <div class="card">
+          <div class="card-header"><h2>📋 Sent History</h2></div>
+          <div id="notif-history" style="max-height:520px;overflow-y:auto;">
+            <div class="empty-state"><p>Loading history...</p></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth } from './js/auth.js';
+  import { injectSidebar, injectTopbarToggle } from './js/layout.js';
+  import { db } from './js/firebase-config.js';
+  import { showToast, setLoading, formatDate } from './js/app.js';
+  import { collection, getDocs, addDoc, serverTimestamp, orderBy, query, limit } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+
+  requireAuth(async (user) => {
+    injectSidebar(user.email);
+    injectTopbarToggle();
+    await loadHistory();
+  });
+
+  window.updateTargetInput = function () {
+    const target = document.getElementById('n-target').value;
+    const group = document.getElementById('target-id-group');
+    const label = document.getElementById('target-id-label');
+    if (target === 'class') { group.style.display = ''; label.textContent = 'Class Name'; document.getElementById('n-target-id').placeholder = 'e.g. Class 10-A'; }
+    else if (target === 'student') { group.style.display = ''; label.textContent = 'Student User ID'; document.getElementById('n-target-id').placeholder = 'Firestore User ID'; }
+    else if (target === 'teacher') { group.style.display = ''; label.textContent = 'Teacher User ID'; document.getElementById('n-target-id').placeholder = 'Firestore User ID'; }
+    else { group.style.display = 'none'; }
+  };
+
+  window.sendNotification = async function () {
+    const title = document.getElementById('n-title').value.trim();
+    const message = document.getElementById('n-message').value.trim();
+    const targetType = document.getElementById('n-target').value;
+    const type = document.getElementById('n-type').value;
+    const targetId = document.getElementById('n-target-id').value.trim();
+    const imageUrl = document.getElementById('n-image').value.trim();
+
+    if (!title || !message) { showToast('Title and message are required.', 'error'); return; }
+    if (['class','student','teacher'].includes(targetType) && !targetId) { showToast('Please enter a target ID/name.', 'error'); return; }
+
+    const btn = document.getElementById('send-btn');
+    setLoading(btn, true, 'Sending...');
+    try {
+      await addDoc(collection(db, 'notifications'), { title, message, targetType, targetId: targetId || null, type, imageUrl: imageUrl || null, createdAt: serverTimestamp() });
+      showToast('Notification sent successfully!', 'success');
+      document.getElementById('n-title').value = '';
+      document.getElementById('n-message').value = '';
+      document.getElementById('n-image').value = '';
+      await loadHistory();
+    } catch (e) { showToast('Error: ' + e.message, 'error'); } finally { setLoading(btn, false); }
+  };
+
+  async function loadHistory() {
+    const snap = await getDocs(query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(20)));
+    const container = document.getElementById('notif-history');
+    if (snap.empty) { container.innerHTML = '<div class="empty-state"><p>No notifications sent yet.</p></div>'; return; }
+    const typeColors = { info: 'badge-info', alert: 'badge-danger', assignment: 'badge-warning', event: 'badge-success' };
+    const targetMap = { all_students: '🎓 All Students', all_teachers: '👩‍🏫 All Teachers', class: '🏫 Class', student: '👤 Student', teacher: '👤 Teacher' };
+    container.innerHTML = snap.docs.map(doc => {
+      const d = doc.data();
+      return `<div style="padding:14px 20px;border-bottom:1px solid var(--border);">
+        <div class="flex items-center gap-2" style="margin-bottom:4px;">
+          <span style="font-weight:700;font-size:13px;">${d.title}</span>
+          <span class="badge ${typeColors[d.type] || 'badge-gray'}" style="margin-left:auto;">${d.type || 'info'}</span>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${d.message}</p>
+        <div class="flex gap-2">
+          <span class="badge badge-purple" style="font-size:10px;">${targetMap[d.targetType] || d.targetType}</span>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:auto;">${formatDate(d.createdAt)}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+</script>
+</body>
+</html>

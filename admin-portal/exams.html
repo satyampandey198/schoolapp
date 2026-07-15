@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exams — EduManage Admin</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+
+  <div class="main-area">
+    <header class="topbar"><h1>Exam Management</h1><div id="topbar-right"><button class="btn btn-sm btn-primary" onclick="openAddModal()">+ Schedule Exam</button></div></header>
+    <main class="page-content">
+      <div class="card">
+        <div class="card-header">
+          <h2>Scheduled Exams <span id="exam-count" style="font-size:12px;color:var(--text-muted);"></span></h2>
+          <div class="search-bar">
+            <select class="form-input" id="class-filter" onchange="filterExams()" style="width:160px;padding:9px 12px;"><option value="">All Classes</option></select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Exam Name</th><th>Subject</th><th>Class</th><th>Date</th><th>Time</th><th>Total Marks</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="exams-tbody"><tr><td colspan="8"><div class="empty-state"><p>Loading...</p></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="modal-overlay" id="exam-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Schedule Exam</h3>
+      <button class="btn-ghost" onclick="document.getElementById('exam-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id" />
+      <div class="grid-2">
+        <div class="form-group"><label>Exam Name *</label>
+          <select class="form-input" id="e-type">
+            <option>Unit Test</option><option>Mid Term</option><option>Final Exam</option><option>Practical</option><option>Quiz</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Subject *</label><input class="form-input" id="e-subject" placeholder="e.g. Mathematics" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Class *</label><input class="form-input" id="e-class" placeholder="e.g. Class 10-A" /></div>
+        <div class="form-group"><label>Exam Date *</label><input class="form-input" id="e-date" type="date" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Start Time</label><input class="form-input" id="e-start" type="time" /></div>
+        <div class="form-group"><label>End Time</label><input class="form-input" id="e-end" type="time" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Total Marks *</label><input class="form-input" id="e-marks" type="number" placeholder="e.g. 100" /></div>
+        <div class="form-group"><label>Passing Marks</label><input class="form-input" id="e-pass" type="number" placeholder="e.g. 35" /></div>
+      </div>
+      <div class="form-group"><label>Notes</label><textarea class="form-input" id="e-notes" rows="2" placeholder="Optional instructions..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-outline" onclick="document.getElementById('exam-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-sm btn-primary" style="width:auto;padding:9px 22px;" id="save-btn" onclick="saveExam()">Save Exam</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth } from './js/auth.js';
+  import { injectSidebar, injectTopbarToggle } from './js/layout.js';
+  import { db } from './js/firebase-config.js';
+  import { showToast, setLoading, formatDate } from './js/app.js';
+  import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy, query, Timestamp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+
+  let allExams = [];
+
+  requireAuth(async (user) => {
+    injectSidebar(user.email);
+    injectTopbarToggle();
+    await loadExams();
+  });
+
+  async function loadExams() {
+    const snap = await getDocs(query(collection(db, 'exams'), orderBy('examDate')));
+    allExams = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.getElementById('exam-count').textContent = `(${allExams.length})`;
+    const classes = [...new Set(allExams.map(e => e.className).filter(Boolean))].sort();
+    const cf = document.getElementById('class-filter');
+    cf.innerHTML = '<option value="">All Classes</option>' + classes.map(c => `<option>${c}</option>`).join('');
+    renderTable(allExams);
+  }
+
+  function getStatus(exam) {
+    const now = new Date();
+    const examDate = exam.examDate?.toDate ? exam.examDate.toDate() : new Date(exam.examDate);
+    const diff = examDate - now;
+    if (diff < 0) return '<span class="badge badge-gray">Completed</span>';
+    if (diff < 86400000 * 3) return '<span class="badge badge-warning">Upcoming</span>';
+    return '<span class="badge badge-success">Scheduled</span>';
+  }
+
+  function renderTable(exams) {
+    const tbody = document.getElementById('exams-tbody');
+    if (!exams.length) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>No exams scheduled.</p></div></td></tr>'; return; }
+    tbody.innerHTML = exams.map(e => `
+      <tr>
+        <td style="font-weight:700;">${e.examType || '—'}</td>
+        <td><span class="badge badge-info">${e.subject || '—'}</span></td>
+        <td>${e.className || '—'}</td>
+        <td>${formatDate(e.examDate)}</td>
+        <td>${e.startTime || '—'} – ${e.endTime || '—'}</td>
+        <td><strong>${e.totalMarks || '—'}</strong></td>
+        <td>${getStatus(e)}</td>
+        <td><div class="flex gap-2">
+          <button class="btn btn-sm btn-info" onclick="editExam('${e.id}')">Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteExam('${e.id}')">Delete</button>
+        </div></td>
+      </tr>`).join('');
+  }
+
+  window.filterExams = () => {
+    const cls = document.getElementById('class-filter').value;
+    renderTable(cls ? allExams.filter(e => e.className === cls) : allExams);
+  };
+
+  window.openAddModal = () => {
+    document.getElementById('edit-id').value = '';
+    document.getElementById('modal-title').textContent = 'Schedule New Exam';
+    ['e-subject','e-class','e-start','e-end','e-notes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('e-type').selectedIndex = 0;
+    document.getElementById('e-date').value = '';
+    document.getElementById('e-marks').value = '100';
+    document.getElementById('e-pass').value = '35';
+    document.getElementById('exam-modal').classList.add('open');
+  };
+
+  window.editExam = (id) => {
+    const e = allExams.find(x => x.id === id);
+    if (!e) return;
+    document.getElementById('edit-id').value = id;
+    document.getElementById('modal-title').textContent = 'Edit Exam';
+    document.getElementById('e-type').value = e.examType || 'Unit Test';
+    document.getElementById('e-subject').value = e.subject || '';
+    document.getElementById('e-class').value = e.className || '';
+    const d = e.examDate?.toDate ? e.examDate.toDate() : new Date(e.examDate);
+    document.getElementById('e-date').value = d.toISOString().split('T')[0];
+    document.getElementById('e-start').value = e.startTime || '';
+    document.getElementById('e-end').value = e.endTime || '';
+    document.getElementById('e-marks').value = e.totalMarks || '';
+    document.getElementById('e-pass').value = e.passingMarks || '';
+    document.getElementById('e-notes').value = e.notes || '';
+    document.getElementById('exam-modal').classList.add('open');
+  };
+
+  window.saveExam = async () => {
+    const subject = document.getElementById('e-subject').value.trim();
+    const className = document.getElementById('e-class').value.trim();
+    const dateVal = document.getElementById('e-date').value;
+    const totalMarks = document.getElementById('e-marks').value;
+    if (!subject || !className || !dateVal || !totalMarks) { showToast('Please fill all required fields.', 'error'); return; }
+    const btn = document.getElementById('save-btn');
+    setLoading(btn, true);
+    const data = {
+      examType: document.getElementById('e-type').value,
+      subject, className, totalMarks: parseInt(totalMarks),
+      passingMarks: parseInt(document.getElementById('e-pass').value) || 0,
+      startTime: document.getElementById('e-start').value,
+      endTime: document.getElementById('e-end').value,
+      notes: document.getElementById('e-notes').value.trim(),
+      examDate: Timestamp.fromDate(new Date(dateVal)),
+    };
+    try {
+      const editId = document.getElementById('edit-id').value;
+      if (editId) { await updateDoc(doc(db, 'exams', editId), data); showToast('Exam updated!', 'success'); }
+      else { await addDoc(collection(db, 'exams'), data); showToast('Exam scheduled!', 'success'); }
+      document.getElementById('exam-modal').classList.remove('open');
+      await loadExams();
+    } catch (e) { showToast('Error: ' + e.message, 'error'); } finally { setLoading(btn, false); }
+  };
+
+  window.deleteExam = async (id) => {
+    if (!confirm('Delete this exam?')) return;
+    try { await deleteDoc(doc(db, 'exams', id)); showToast('Exam deleted.', 'info'); await loadExams(); }
+    catch (e) { showToast('Error: ' + e.message, 'error'); }
+  };
+</script>
+</body>
+</html>

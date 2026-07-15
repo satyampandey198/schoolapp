@@ -94,18 +94,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 90,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
-                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF2563EB).withValues(alpha: 0.4),
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.3),
                             blurRadius: 24,
                             spreadRadius: 4,
                           ),
                         ],
                       ),
-                      child: const Center(child: Text('🏫', style: TextStyle(fontSize: 40))),
+                      child: ClipOval(
+                        child: Image.asset('assets/images/App-logo.png', fit: BoxFit.cover),
+                      ),
                     ).animate().scale(duration: 600.ms, curve: Curves.elasticOut),
                   ),
                   const SizedBox(height: 24),
@@ -116,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.3, end: 0),
                   const SizedBox(height: 6),
                   Text(
-                    'Sign in to your school portal',
+                    'Sign in to your schoolonly portal',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ).animate().fadeIn(delay: 300.ms),

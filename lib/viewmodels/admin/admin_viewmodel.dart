@@ -4,6 +4,9 @@ import '../../models/teacher_model.dart';
 import '../../models/student_model.dart';
 import '../../models/class_model.dart';
 import '../../models/notification_model.dart';
+import '../../models/complaint_model.dart';
+import '../../models/lecture_schedule_model.dart';
+import '../../models/exam_model.dart';
 
 class AdminViewModel extends ChangeNotifier {
   List<TeacherModel> _teachers = [];
@@ -11,10 +14,12 @@ class AdminViewModel extends ChangeNotifier {
   List<ClassModel> _classes = [];
   List<NotificationModel> _notifications = [];
   List<String> _globalSubjects = [];
+  List<ComplaintModel> _complaints = [];
+  List<LectureScheduleModel> _lectures = [];
+  List<ExamModel> _exams = [];
   String _searchQuery = '';
   bool _isLoading = false;
-
-
+  bool _isLoadingDashboard = true;
 
   List<TeacherModel> get teachers => _teachers
       .where((t) =>
@@ -26,8 +31,12 @@ class AdminViewModel extends ChangeNotifier {
   List<ClassModel> get classes => _classes;
   List<NotificationModel> get notifications => _notifications;
   List<String> get globalSubjects => _globalSubjects;
+  List<ComplaintModel> get complaints => _complaints;
+  List<LectureScheduleModel> get lectures => _lectures;
+  List<ExamModel> get exams => _exams;
 
   bool get isLoading => _isLoading;
+  bool get isLoadingDashboard => _isLoadingDashboard;
   int get totalTeachers => _teachers.length;
   int get totalStudents => _students.length;
   int get totalClasses => _classes.length;
@@ -57,6 +66,7 @@ class AdminViewModel extends ChangeNotifier {
           loginPassword: data['loginPassword'] ?? '',
         );
       }).toList();
+      _isLoadingDashboard = false;
       notifyListeners();
     });
 
@@ -108,7 +118,7 @@ class AdminViewModel extends ChangeNotifier {
     });
 
     // Listen to Notifications
-    db.collection('notifications').orderBy('createdAt', descending: true).snapshots().listen((snapshot) {
+    db.collection('notifications').orderBy('createdAt', descending: true).limit(20).snapshots().listen((snapshot) {
       _notifications = snapshot.docs.map((doc) {
         final data = doc.data();
         return NotificationModel(
@@ -123,6 +133,24 @@ class AdminViewModel extends ChangeNotifier {
       }).toList();
       notifyListeners();
     });
+
+    // Listen to Complaints
+    db.collection('complaints').orderBy('createdAt', descending: true).limit(20).snapshots().listen((snapshot) {
+      _complaints = snapshot.docs.map((doc) => ComplaintModel.fromMap(doc.id, doc.data())).toList();
+      notifyListeners();
+    });
+
+    // Listen to Lectures
+    db.collection('lectures').orderBy('date').snapshots().listen((snapshot) {
+      _lectures = snapshot.docs.map((doc) => LectureScheduleModel.fromMap(doc.id, doc.data())).toList();
+      notifyListeners();
+    });
+
+    // Listen to Exams
+    db.collection('exams').orderBy('date').snapshots().listen((snapshot) {
+      _exams = snapshot.docs.map((doc) => ExamModel.fromMap(doc.id, doc.data())).toList();
+      notifyListeners();
+    });
   }
 
   void setSearch(String q) {
@@ -131,7 +159,7 @@ class AdminViewModel extends ChangeNotifier {
   }
 
   // ──── TEACHER CRUD ────────────────────────────────────────────────────
-  void addTeacher(TeacherModel teacher) async {
+  Future<void> addTeacher(TeacherModel teacher) async {
     try {
       // In a real scenario, you'd use a Cloud Function to create a user account securely.
       // Here we assume it's created or we just store the profile.
@@ -156,15 +184,17 @@ class AdminViewModel extends ChangeNotifier {
         'lastName': teacher.name.split(' ').length > 1 ? teacher.name.split(' ').last : '',
         'loginPassword': teacher.loginPassword,
       });
-    } catch (e) { print(e); }
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  void removeTeacher(String id) async {
+  Future<void> removeTeacher(String id) async {
     await FirebaseFirestore.instance.collection('teachers').doc(id).delete();
     await FirebaseFirestore.instance.collection('users').doc(id).delete();
   }
 
-  void updateTeacher(TeacherModel updated) async {
+  Future<void> updateTeacher(TeacherModel updated) async {
     await FirebaseFirestore.instance.collection('teachers').doc(updated.id).update({
       'name': updated.name,
       'subject': updated.subject,
@@ -177,7 +207,12 @@ class AdminViewModel extends ChangeNotifier {
   }
 
   // ──── STUDENT CRUD ────────────────────────────────────────────────────
-  void addStudent(StudentModel student) async {
+  Future<void> addStudent(StudentModel student) async {
+    final query = await FirebaseFirestore.instance.collection('students').where('rollNumber', isEqualTo: student.rollNumber).get();
+    if (query.docs.isNotEmpty) {
+      throw Exception('Roll Number already exists');
+    }
+
     await FirebaseFirestore.instance.collection('students').doc(student.id).set({
       'name': student.name,
       'rollNumber': student.rollNumber,
@@ -197,23 +232,32 @@ class AdminViewModel extends ChangeNotifier {
     });
   }
 
-  void removeStudent(String id) async {
+  Future<void> updateStudent(StudentModel updated) async {
+    await FirebaseFirestore.instance.collection('students').doc(updated.id).update({
+      'name': updated.name,
+      'rollNumber': updated.rollNumber,
+      'className': updated.className,
+      'section': updated.section,
+    });
+  }
+
+  Future<void> removeStudent(String id) async {
     await FirebaseFirestore.instance.collection('students').doc(id).delete();
     await FirebaseFirestore.instance.collection('users').doc(id).delete();
   }
 
-  void updateTeacherPassword(String id, String newPassword) async {
+  Future<void> updateTeacherPassword(String id, String newPassword) async {
     await FirebaseFirestore.instance.collection('teachers').doc(id).update({'loginPassword': newPassword});
     await FirebaseFirestore.instance.collection('users').doc(id).update({'loginPassword': newPassword});
   }
 
-  void updateStudentPassword(String id, String newPassword) async {
+  Future<void> updateStudentPassword(String id, String newPassword) async {
     await FirebaseFirestore.instance.collection('students').doc(id).update({'loginPassword': newPassword});
     await FirebaseFirestore.instance.collection('users').doc(id).update({'loginPassword': newPassword});
   }
 
   // ──── CLASS CRUD ──────────────────────────────────────────────────────
-  void addClass(ClassModel cls) async {
+  Future<void> addClass(ClassModel cls) async {
     await FirebaseFirestore.instance.collection('classes').doc(cls.id).set({
       'name': cls.name,
       'section': cls.section,
@@ -227,7 +271,7 @@ class AdminViewModel extends ChangeNotifier {
     });
   }
 
-  void updateClass(ClassModel updated) async {
+  Future<void> updateClass(ClassModel updated) async {
     await FirebaseFirestore.instance.collection('classes').doc(updated.id).update({
       'name': updated.name,
       'section': updated.section,
@@ -241,12 +285,12 @@ class AdminViewModel extends ChangeNotifier {
     });
   }
 
-  void deleteClass(String id) async {
+  Future<void> deleteClass(String id) async {
     await FirebaseFirestore.instance.collection('classes').doc(id).delete();
   }
 
   // ──── SUBJECT CRUD ────────────────────────────────────────────────────
-  void addSubject(String subject) async {
+  Future<void> addSubject(String subject) async {
     final list = List<String>.from(_globalSubjects);
     if (!list.contains(subject)) {
       list.add(subject);
@@ -254,24 +298,61 @@ class AdminViewModel extends ChangeNotifier {
     }
   }
 
-  void removeSubject(String subject) async {
+  Future<void> removeSubject(String subject) async {
     final list = List<String>.from(_globalSubjects)..remove(subject);
     await FirebaseFirestore.instance.collection('settings').doc('subjects').set({'list': list});
   }
 
+  // ──── COMPLAINTS CRUD ─────────────────────────────────────────────────
+  Future<void> updateComplaintStatus(String id, String status, {String? reply}) async {
+    await FirebaseFirestore.instance.collection('complaints').doc(id).update({
+      'status': status,
+      if (reply != null) 'adminReply': reply,
+    });
+  }
+
+  // ──── LECTURE SCHEDULE CRUD ───────────────────────────────────────────
+  Future<void> addLecture(LectureScheduleModel lecture) async {
+    await FirebaseFirestore.instance.collection('lectures').add(lecture.toMap());
+  }
+
+  Future<void> updateLectureStatus(String id, String status) async {
+    await FirebaseFirestore.instance.collection('lectures').doc(id).update({'status': status});
+  }
+
+  Future<void> deleteLecture(String id) async {
+    await FirebaseFirestore.instance.collection('lectures').doc(id).delete();
+  }
+
+  // ──── EXAM CRUD ───────────────────────────────────────────────────────
+  Future<void> addExam(ExamModel exam) async {
+    await FirebaseFirestore.instance.collection('exams').add(exam.toMap());
+  }
+
+  Future<void> updateExam(ExamModel updated) async {
+    await FirebaseFirestore.instance.collection('exams').doc(updated.id).update(updated.toMap());
+  }
+
+  Future<void> deleteExam(String id) async {
+    await FirebaseFirestore.instance.collection('exams').doc(id).delete();
+  }
+
   // ──── NOTIFICATION ────────────────────────────────────────────────────
-  void sendNotification(String title, String message, String type, {String? targetRole}) async {
+  Future<void> sendNotification(String title, String message, String type, {String? targetRole, String? targetType, String? targetId, String? imageUrl}) async {
     await FirebaseFirestore.instance.collection('notifications').add({
       'title': title,
       'message': message,
       'type': type,
       'createdAt': FieldValue.serverTimestamp(),
       'targetRole': targetRole,
+      'targetType': targetType,
+      'targetId': targetId,
+      'imageUrl': imageUrl,
       'readBy': {},
     });
   }
 
-  void markNotificationRead(String notificationId, String userId, String userName) async {
+  Future<void> markNotificationRead(String notificationId, String userId, String userName) async {
     await FirebaseFirestore.instance.collection('notifications').doc(notificationId).set({
       'readBy': {userId: userName}
     }, SetOptions(merge: true));

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subjects — EduManage Admin</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+
+  <div class="main-area">
+    <header class="topbar"><h1>Subjects Management</h1><div id="topbar-right"><button class="btn btn-sm btn-primary" onclick="openAddModal()">+ Add Subject</button></div></header>
+    <main class="page-content">
+      <div class="card">
+        <div class="card-header"><h2>All Subjects <span id="subject-count" style="font-size:12px;color:var(--text-muted);"></span></h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Subject Name</th><th>Code</th><th>Class</th><th>Teacher</th><th>Type</th><th>Actions</th></tr></thead>
+            <tbody id="subjects-tbody"><tr><td colspan="6"><div class="empty-state"><p>Loading...</p></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="modal-overlay" id="subject-modal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3 id="modal-title">Add Subject</h3>
+      <button class="btn-ghost" onclick="document.getElementById('subject-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id" />
+      <div class="grid-2">
+        <div class="form-group"><label>Subject Name *</label><input class="form-input" id="s-name" placeholder="e.g. Mathematics" /></div>
+        <div class="form-group"><label>Subject Code</label><input class="form-input" id="s-code" placeholder="e.g. MATH101" /></div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label>Class</label><input class="form-input" id="s-class" placeholder="e.g. Class 10-A" /></div>
+        <div class="form-group"><label>Teacher</label><input class="form-input" id="s-teacher" placeholder="Teacher name" /></div>
+      </div>
+      <div class="form-group"><label>Type</label>
+        <select class="form-input" id="s-type"><option>Theory</option><option>Practical</option><option>Both</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-outline" onclick="document.getElementById('subject-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-sm btn-primary" style="width:auto;padding:9px 22px;" id="save-btn" onclick="saveSubject()">Save Subject</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth } from './js/auth.js';
+  import { injectSidebar, injectTopbarToggle } from './js/layout.js';
+  import { db } from './js/firebase-config.js';
+  import { showToast, setLoading } from './js/app.js';
+  import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy, query } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+
+  let allSubjects = [];
+
+  requireAuth(async (user) => {
+    injectSidebar(user.email);
+    injectTopbarToggle();
+    await loadSubjects();
+  });
+
+  async function loadSubjects() {
+    const snap = await getDocs(query(collection(db, 'subjects'), orderBy('name')));
+    allSubjects = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.getElementById('subject-count').textContent = `(${allSubjects.length})`;
+    const tbody = document.getElementById('subjects-tbody');
+    if (!allSubjects.length) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>No subjects added yet.</p></div></td></tr>'; return; }
+    tbody.innerHTML = allSubjects.map(s => `
+      <tr>
+        <td style="font-weight:700;">${s.name}</td>
+        <td><span class="badge badge-gray">${s.code || '—'}</span></td>
+        <td>${s.className || '—'}</td>
+        <td>${s.teacher || '—'}</td>
+        <td><span class="badge badge-info">${s.type || 'Theory'}</span></td>
+        <td><div class="flex gap-2">
+          <button class="btn btn-sm btn-info" onclick="editSubject('${s.id}')">Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteSubject('${s.id}', '${s.name}')">Delete</button>
+        </div></td>
+      </tr>`).join('');
+  }
+
+  window.openAddModal = () => {
+    document.getElementById('edit-id').value = '';
+    document.getElementById('modal-title').textContent = 'Add Subject';
+    ['s-name','s-code','s-class','s-teacher'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('s-type').selectedIndex = 0;
+    document.getElementById('subject-modal').classList.add('open');
+  };
+
+  window.editSubject = (id) => {
+    const s = allSubjects.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('edit-id').value = id;
+    document.getElementById('modal-title').textContent = 'Edit Subject';
+    document.getElementById('s-name').value = s.name || '';
+    document.getElementById('s-code').value = s.code || '';
+    document.getElementById('s-class').value = s.className || '';
+    document.getElementById('s-teacher').value = s.teacher || '';
+    document.getElementById('s-type').value = s.type || 'Theory';
+    document.getElementById('subject-modal').classList.add('open');
+  };
+
+  window.saveSubject = async () => {
+    const name = document.getElementById('s-name').value.trim();
+    if (!name) { showToast('Subject name is required.', 'error'); return; }
+    const btn = document.getElementById('save-btn');
+    setLoading(btn, true);
+    const data = { name, code: document.getElementById('s-code').value.trim(), className: document.getElementById('s-class').value.trim(), teacher: document.getElementById('s-teacher').value.trim(), type: document.getElementById('s-type').value };
+    try {
+      const editId = document.getElementById('edit-id').value;
+      if (editId) { await updateDoc(doc(db, 'subjects', editId), data); showToast('Subject updated!', 'success'); }
+      else { await addDoc(collection(db, 'subjects'), data); showToast('Subject added!', 'success'); }
+      document.getElementById('subject-modal').classList.remove('open');
+      await loadSubjects();
+    } catch (e) { showToast('Error: ' + e.message, 'error'); } finally { setLoading(btn, false); }
+  };
+
+  window.deleteSubject = async (id, name) => {
+    if (!confirm(`Delete subject "${name}"?`)) return;
+    try { await deleteDoc(doc(db, 'subjects', id)); showToast('Subject deleted.', 'info'); await loadSubjects(); }
+    catch (e) { showToast('Error: ' + e.message, 'error'); }
+  };
+</script>
+</body>
+</html>

@@ -49,21 +49,28 @@ class _AddTeacherScreenState extends State<AddTeacherScreen> {
     await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
     final vm = context.read<AdminViewModel>();
-    vm.addTeacher(TeacherModel(
-      id: 't${DateTime.now().millisecondsSinceEpoch}',
-      name: _name.text.trim(),
-      subject: _subject.text.trim(),
-      assignedClass: '',
-      experience: '${_exp.text.trim()} Years',
-      email: _email.text.trim(),
-      phone: _phone.text.trim(),
-      qualification: _qual.text.trim(),
-      loginUsername: _generatedUsername,
-      loginPassword: _generatedPassword,
-    ));
-    setState(() => _isSaving = false);
-    if (mounted) {
+    try {
+      await vm.addTeacher(TeacherModel(
+        id: 't${DateTime.now().millisecondsSinceEpoch}',
+        name: _name.text.trim(),
+        subject: _subject.text.trim(),
+        assignedClass: '',
+        experience: '${_exp.text.trim()} Years',
+        email: _email.text.trim(),
+        phone: _phone.text.trim(),
+        qualification: _qual.text.trim(),
+        loginUsername: _generatedUsername,
+        loginPassword: _generatedPassword,
+      ));
+      if (!mounted) return;
+      setState(() => _isSaving = false);
       _showCredentialsDialog(context);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
+      );
     }
   }
 

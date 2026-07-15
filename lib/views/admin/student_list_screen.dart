@@ -159,11 +159,13 @@ class _StudentCard extends StatelessWidget {
           ),
           PopupMenuButton<String>(
             itemBuilder: (_) => [
+              const PopupMenuItem(value: 'edit', child: Text('Edit')),
               const PopupMenuItem(value: 'credentials', child: Text('View Credentials')),
               const PopupMenuItem(value: 'reset_pass', child: Text('Reset Password')),
               const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
             ],
             onSelected: (v) {
+              if (v == 'edit') _showEditStudentDialog(context);
               if (v == 'credentials') _showCredentials(context);
               if (v == 'reset_pass') _showResetPassword(context);
               if (v == 'delete') onDelete();
@@ -224,6 +226,54 @@ class _StudentCard extends StatelessWidget {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password updated!')));
               }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditStudentDialog(BuildContext context) {
+    final nameCtrl = TextEditingController(text: student.name);
+    final rollCtrl = TextEditingController(text: student.rollNumber);
+    final classCtrl = TextEditingController(text: student.className);
+    final sectionCtrl = TextEditingController(text: student.section);
+    
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Edit Student'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Name')),
+              const SizedBox(height: 12),
+              TextField(controller: rollCtrl, decoration: const InputDecoration(labelText: 'Roll Number')),
+              const SizedBox(height: 12),
+              TextField(controller: classCtrl, decoration: const InputDecoration(labelText: 'Class')),
+              const SizedBox(height: 12),
+              TextField(controller: sectionCtrl, decoration: const InputDecoration(labelText: 'Section')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final updated = StudentModel(
+                id: student.id,
+                name: nameCtrl.text.trim(),
+                rollNumber: rollCtrl.text.trim(),
+                className: classCtrl.text.trim(),
+                section: sectionCtrl.text.trim(),
+                loginUsername: student.loginUsername,
+                loginPassword: student.loginPassword,
+              );
+              context.read<AdminViewModel>().updateStudent(updated);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Student updated successfully!')));
             },
             child: const Text('Save'),
           ),

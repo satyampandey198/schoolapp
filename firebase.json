@@ -1,1 +1,43 @@
-{"emulators":{"dataconnect":{"dataDir":"dataconnect/.dataconnect/pgliteData"}},"dataconnect":{"source":"dataconnect"},"flutter":{"platforms":{"android":{"default":{"projectId":"school-app-csdese","appId":"1:1006897282967:android:d4cf228cb7989993448ed2","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"school-app-csdese","configurations":{"android":"1:1006897282967:android:d4cf228cb7989993448ed2","web":"1:1006897282967:web:f8295ac50f6e5eb5448ed2"}}}}}}
+{
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ],
+  "emulators": {
+    "dataconnect": {
+      "dataDir": "dataconnect/.dataconnect/pgliteData"
+    }
+  },
+  "dataconnect": {
+    "source": "dataconnect"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "school-app-csdese",
+          "appId": "1:1006897282967:android:d4cf228cb7989993448ed2",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "school-app-csdese",
+          "configurations": {
+            "android": "1:1006897282967:android:d4cf228cb7989993448ed2",
+            "web": "1:1006897282967:web:f8295ac50f6e5eb5448ed2"
+          }
+        }
+      }
+    }
+  }
+}

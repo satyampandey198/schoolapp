@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — EduManage Admin</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar"></aside>
+  <div class="main-area">
+    <header class="topbar">
+      <h1>Dashboard</h1>
+      <div id="topbar-right"></div>
+    </header>
+    <main class="page-content">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(99,102,241,0.12);">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div class="stat-info"><p id="count-students">—</p><p>Total Students</p></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(16,185,129,0.12);">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M3 7l9-4 9 4"/></svg>
+          </div>
+          <div class="stat-info"><p id="count-teachers">—</p><p>Total Teachers</p></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(14,165,233,0.12);">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          </div>
+          <div class="stat-info"><p id="count-classes">—</p><p>Total Classes</p></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(245,158,11,0.12);">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div class="stat-info"><p id="count-complaints">—</p><p>Open Complaints</p></div>
+        </div>
+      </div>
+
+      <!-- Quick Links -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:28px;">
+        <a href="students.html" class="card" style="padding:20px;text-align:center;transition:transform 0.2s,box-shadow 0.2s;display:block;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform=''"><div style="font-size:32px;margin-bottom:8px;">👨‍🎓</div><div style="font-weight:700;font-size:14px;">Students</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Add, Edit, Delete</div></a>
+        <a href="teachers.html" class="card" style="padding:20px;text-align:center;transition:transform 0.2s,box-shadow 0.2s;display:block;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform=''"><div style="font-size:32px;margin-bottom:8px;">👩‍🏫</div><div style="font-weight:700;font-size:14px;">Teachers</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Add, Edit, Delete</div></a>
+        <a href="classes.html" class="card" style="padding:20px;text-align:center;transition:transform 0.2s,box-shadow 0.2s;display:block;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform=''"><div style="font-size:32px;margin-bottom:8px;">🏫</div><div style="font-weight:700;font-size:14px;">Classes</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Create & Assign</div></a>
+        <a href="timetable.html" class="card" style="padding:20px;text-align:center;transition:transform 0.2s,box-shadow 0.2s;display:block;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform=''"><div style="font-size:32px;margin-bottom:8px;">📅</div><div style="font-weight:700;font-size:14px;">Timetable</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Schedule Lectures</div></a>
+        <a href="exams.html" class="card" style="padding:20px;text-align:center;transition:transform 0.2s,box-shadow 0.2s;display:block;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform=''"><div style="font-size:32px;margin-bottom:8px;">📝</div><div style="font-weight:700;font-size:14px;">Exams</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Schedule & Manage</div></a>
+        <a href="notifications.html" class="card" style="padding:20px;text-align:center;transition:transform 0.2s,box-shadow 0.2s;display:block;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform=''"><div style="font-size:32px;margin-bottom:8px;">🔔</div><div style="font-weight:700;font-size:14px;">Notifications</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Send Alerts</div></a>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2>Recent Notifications Sent</h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Title</th><th>Target</th><th>Type</th><th>Sent At</th></tr></thead>
+            <tbody id="recent-notifications"><tr><td colspan="4"><div class="empty-state"><p>Loading...</p></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+  import { requireAuth } from './js/auth.js';
+  import { db } from './js/firebase-config.js';
+  import { formatDate } from './js/app.js';
+  import { injectSidebar, injectTopbarToggle } from './js/layout.js';
+  import { collection, getCountFromServer, query, where, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore.js";
+
+  requireAuth(async (user) => {
+    injectSidebar(user.email);
+    injectTopbarToggle();
+
+    const [studentsSnap, teachersSnap, classesSnap, complaintsSnap] = await Promise.all([
+      getCountFromServer(collection(db, 'students')),
+      getCountFromServer(collection(db, 'teachers')),
+      getCountFromServer(collection(db, 'classes')),
+      getCountFromServer(query(collection(db, 'complaints'), where('status', '==', 'open'))),
+    ]);
+    document.getElementById('count-students').textContent = studentsSnap.data().count;
+    document.getElementById('count-teachers').textContent = teachersSnap.data().count;
+    document.getElementById('count-classes').textContent = classesSnap.data().count;
+    document.getElementById('count-complaints').textContent = complaintsSnap.data().count;
+
+    const notifQ = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(8));
+    const notifSnap = await getDocs(notifQ);
+    const tbody = document.getElementById('recent-notifications');
+    const types = { info: 'badge-info', alert: 'badge-danger', assignment: 'badge-warning', event: 'badge-success' };
+    const targetMap = { all_students: 'All Students', all_teachers: 'All Teachers', student: 'Specific Student', teacher: 'Specific Teacher', class: 'Specific Class' };
+
+    if (notifSnap.empty) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><p>No notifications sent yet.</p></div></td></tr>';
+    } else {
+      tbody.innerHTML = notifSnap.docs.map(doc => {
+        const d = doc.data();
+        return `<tr>
+          <td style="font-weight:600;">${d.title || '—'}</td>
+          <td>${targetMap[d.targetType] || d.targetType || '—'}</td>
+          <td><span class="badge ${types[d.type] || 'badge-gray'}">${d.type || 'info'}</span></td>
+          <td>${formatDate(d.createdAt)}</td>
+        </tr>`;
+      }).join('');
+    }
+  });
+</script>
+</body>
+</html>

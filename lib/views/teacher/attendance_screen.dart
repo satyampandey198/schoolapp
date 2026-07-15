@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../viewmodels/teacher/teacher_viewmodel.dart';
 import '../../core/utils/export_utils.dart';
 import '../../widgets/buttons/custom_button.dart';
+import '../../widgets/common/shimmer_loader.dart';
 
 class AttendanceScreen extends StatelessWidget {
   const AttendanceScreen({super.key});
@@ -52,6 +53,16 @@ class AttendanceScreen extends StatelessWidget {
               );
             },
           ),
+          if (vm.currentAttendanceRecord?.isEdited == true)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ActionChip(
+                label: const Text('Edited', style: TextStyle(color: Colors.white, fontSize: 11)),
+                backgroundColor: Colors.orange,
+                padding: EdgeInsets.zero,
+                onPressed: () => _showEditHistory(context, vm),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
@@ -104,7 +115,9 @@ class AttendanceScreen extends StatelessWidget {
 
           // Student list
           Expanded(
-            child: ListView.builder(
+            child: vm.isLoadingDashboard
+                ? const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: ShimmerList(count: 8, itemHeight: 65))
+                : ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: vm.classStudents.length,
               itemBuilder: (_, i) {
@@ -167,13 +180,80 @@ class AttendanceScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: CustomButton(
               label: vm.attendanceSaved ? '✓ Attendance Saved' : 'Save Attendance',
-              onPressed: vm.attendanceSaved ? null : () => context.read<TeacherViewModel>().saveAttendance(),
+              onPressed: vm.attendanceSaved ? null : () async {
+                try {
+                  await context.read<TeacherViewModel>().saveAttendance();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Attendance Saved!'), backgroundColor: Colors.green));
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red));
+                  }
+                }
+              },
               color: vm.attendanceSaved ? Colors.green : null,
               icon: vm.attendanceSaved ? Icons.check_circle_rounded : Icons.save_rounded,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  void _showEditHistory(BuildContext context, TeacherViewModel vm) {
+    final record = vm.currentAttendanceRecord;
+    if (record == null || !record.isEdited) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 24, right: 24, top: 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Edit History', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Text('Edited by: ${record.editedBy ?? "Unknown"}'),
+              Text('Edited on: ${record.editedTimestamp.toString().split('.')[0]}'),
+              const SizedBox(height: 24),
+              const Text('Changes:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: record.records.entries.map((e) {
+                    final studentId = e.key;
+                    final currentStatus = e.value;
+                    final originalStatus = record.originalRecords?[studentId];
+                    if (originalStatus != null && originalStatus != currentStatus) {
+                      final student = vm.classStudents.firstWhere((s) => s.id == studentId, orElse: () => vm.classStudents[0]);
+                      return ListTile(
+                        title: Text(student.name),
+                        subtitle: Text('Changed from ${originalStatus ? 'Present' : 'Absent'} to ${currentStatus ? 'Present' : 'Absent'}'),
+                        leading: const Icon(Icons.edit_note_rounded, color: Colors.orange),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
